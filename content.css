@@ -300,6 +300,8 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  flex-wrap: wrap; /* 允许换行，避免token信息太长 */
+  max-width: 300px; /* 限制最大宽度 */
 }
 
 /* 滚动条样式 */

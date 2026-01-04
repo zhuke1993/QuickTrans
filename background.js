@@ -103,6 +103,7 @@ const TranslationService = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let usage = null; // 存储token使用信息
 
     try {
       while (true) {
@@ -133,6 +134,11 @@ const TranslationService = {
                 // 调用回调函数，实时传递数据块
                 onChunk(content, fullText);
               }
+              
+              // 提取usage信息（通常在最后一个chunk中）
+              if (parsed.usage) {
+                usage = parsed.usage;
+              }
             } catch (e) {
               console.error('解析流数据失败:', e, 'data:', data);
             }
@@ -143,7 +149,8 @@ const TranslationService = {
       return {
         success: true,
         translatedText: fullText,
-        model: model
+        model: model,
+        usage: usage // 返回token使用信息
       };
 
     } catch (error) {
@@ -173,22 +180,29 @@ const TranslationService = {
       const model = apiConfig.model;
       const useStream = !!onChunk; // 如果提供了回调函数，则启用流式
       
+      const requestBody = {
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 10000,
+        stream: useStream // 启用流式输出
+      };
+      
+      // 流式输出时添加 stream_options 以包含 usage 统计信息
+      if (useStream) {
+        requestBody.stream_options = { include_usage: true };
+      }
+      
       const response = await fetch(apiConfig.apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiConfig.apiKey}`
         },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.3,
-          max_tokens: 2000,
-          stream: useStream // 启用流式输出
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
 
@@ -247,7 +261,8 @@ const TranslationService = {
       return {
         success: true,
         translatedText: translatedText,
-        model: apiConfig.model
+        model: apiConfig.model,
+        usage: data.usage // 返回token使用信息
       };
 
     } catch (error) {
@@ -375,9 +390,14 @@ chrome.runtime.onConnect.addListener((port) => {
             onChunk
           );
 
-          // 如果查询成功，缓存结果
+          // 如果查询成功，缓存结果并更新token统计
           if (result.success) {
             await StorageUtils.saveTranslationCache(cacheKey, 'dictionary', result.translatedText);
+            
+            // 更新token统计
+            if (result.usage) {
+              await StorageUtils.updateTokenUsage(result.usage);
+            }
           }
 
           // 发送完成消息
@@ -387,6 +407,7 @@ chrome.runtime.onConnect.addListener((port) => {
               success: result.success,
               definition: result.translatedText,
               model: apiConfig.model,
+              usage: result.usage,
               errorMessage: result.errorMessage,
               errorCode: result.errorCode
             }
@@ -490,9 +511,14 @@ chrome.runtime.onConnect.addListener((port) => {
             onChunk // 传入流式回调
           );
 
-          // 如果翻译成功，缓存结果
+          // 如果翻译成功，缓存结果并更新token统计
           if (result.success) {
             await StorageUtils.saveTranslationCache(text, targetLanguage, result.translatedText);
+            
+            // 更新token统计
+            if (result.usage) {
+              await StorageUtils.updateTokenUsage(result.usage);
+            }
           }
 
           // 发送完成消息

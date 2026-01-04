@@ -288,6 +288,59 @@ const StorageUtils = {
       hash = hash & hash; // 转换为32位整数
     }
     return Math.abs(hash);
+  },
+
+  /**
+   * 获取token使用统计
+   * @returns {Promise<Object>} token使用统计数据
+   */
+  async getTokenUsage() {
+    const result = await chrome.storage.local.get('tokenUsage');
+    return result.tokenUsage || {
+      totalPromptTokens: 0,
+      totalCompletionTokens: 0,
+      totalTokens: 0,
+      requestCount: 0,
+      lastUpdated: null
+    };
+  },
+
+  /**
+   * 更新token使用统计
+   * @param {Object} usage - API返回的usage对象 {prompt_tokens, completion_tokens, total_tokens}
+   * @returns {Promise<Object>} 更新后的统计数据
+   */
+  async updateTokenUsage(usage) {
+    if (!usage) return;
+    
+    const stats = await this.getTokenUsage();
+    
+    const updated = {
+      totalPromptTokens: stats.totalPromptTokens + (usage.prompt_tokens || 0),
+      totalCompletionTokens: stats.totalCompletionTokens + (usage.completion_tokens || 0),
+      totalTokens: stats.totalTokens + (usage.total_tokens || 0),
+      requestCount: stats.requestCount + 1,
+      lastUpdated: Date.now()
+    };
+    
+    await chrome.storage.local.set({ tokenUsage: updated });
+    return updated;
+  },
+
+  /**
+   * 重置token使用统计
+   * @returns {Promise<void>}
+   */
+  async resetTokenUsage() {
+    await chrome.storage.local.set({
+      tokenUsage: {
+        totalPromptTokens: 0,
+        totalCompletionTokens: 0,
+        totalTokens: 0,
+        requestCount: 0,
+        lastUpdated: null
+      }
+    });
   }
 };
 

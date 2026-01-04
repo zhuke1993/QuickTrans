@@ -360,10 +360,17 @@
             copyBtn.disabled = false;
             copyBtn.dataset.translation = response.definition || fullResult;
 
-            // 更新底部信息栏显示模型信息
+            // 更新底部信息栏显示模型信息和token消耗
             const infoDiv = document.querySelector('.ai-translate-popup-info');
             if (infoDiv && response.model) {
-              infoDiv.innerHTML = `AI词典助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+              let infoHtml = `AI词典助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+              
+              // 添加token消耗信息
+              if (response.usage) {
+                infoHtml += `<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #48bb78;" title="输入Token/输出Token/总Token">${response.usage.prompt_tokens || 0}/${response.usage.completion_tokens || 0}/${response.usage.total_tokens || 0} tokens</span>`;
+              }
+              
+              infoDiv.innerHTML = infoHtml;
             }
 
             // 显示缓存提示
@@ -514,10 +521,17 @@
             copyBtn.disabled = false;
             copyBtn.dataset.translation = response.translatedText;
 
-            // 更新底部信息栏显示模型信息
+            // 更新底部信息栏显示模型信息和token消耗
             const infoDiv = document.querySelector('.ai-translate-popup-info');
             if (infoDiv && response.model) {
-              infoDiv.innerHTML = `AI翻译助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+              let infoHtml = `AI翻译助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+              
+              // 添加token消耗信息
+              if (response.usage) {
+                infoHtml += `<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #48bb78;" title="输入Token/输出Token/总Token">${response.usage.prompt_tokens || 0}/${response.usage.completion_tokens || 0}/${response.usage.total_tokens || 0} tokens</span>`;
+              }
+              
+              infoDiv.innerHTML = infoHtml;
             }
 
             // 显示缓存提示

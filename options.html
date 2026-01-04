@@ -221,6 +221,40 @@
           </div>
         </div>
       </section>
+
+      <!-- Token使用统计 -->
+      <section class="preferences-section">
+        <h2 class="section-title">Token使用统计</h2>
+        <div class="preferences-card">
+          <div class="cache-stats">
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">总Token数</div>
+              <div class="cache-stat-value" id="total-tokens" style="color: #667eea;">-</div>
+            </div>
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">输入Token</div>
+              <div class="cache-stat-value" id="prompt-tokens" style="color: #48bb78;">-</div>
+            </div>
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">输出Token</div>
+              <div class="cache-stat-value" id="completion-tokens" style="color: #f6ad55;">-</div>
+            </div>
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">API调用次数</div>
+              <div class="cache-stat-value" id="request-count">-</div>
+            </div>
+          </div>
+          <div class="cache-actions">
+            <button class="btn btn-secondary" id="refresh-token-btn">刷新统计</button>
+            <button class="btn btn-danger" id="reset-token-btn">重置统计</button>
+          </div>
+          <div class="cache-info">
+            <p class="cache-info-text" id="token-last-updated">• 未有统计数据</p>
+            <p class="cache-info-text">• Token统计数据仅存储在本地，不会上传</p>
+            <p class="cache-info-text">• 统计数据包括所有翻译和词典查询的Token消耗</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- 页脚 -->

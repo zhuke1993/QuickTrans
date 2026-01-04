@@ -34,7 +34,15 @@
     cacheCount: document.getElementById('cache-count'),
     cacheSize: document.getElementById('cache-size'),
     refreshCacheBtn: document.getElementById('refresh-cache-btn'),
-    clearAllCacheBtn: document.getElementById('clear-all-cache-btn')
+    clearAllCacheBtn: document.getElementById('clear-all-cache-btn'),
+    // Token统计元素
+    totalTokens: document.getElementById('total-tokens'),
+    promptTokens: document.getElementById('prompt-tokens'),
+    completionTokens: document.getElementById('completion-tokens'),
+    requestCount: document.getElementById('request-count'),
+    tokenLastUpdated: document.getElementById('token-last-updated'),
+    refreshTokenBtn: document.getElementById('refresh-token-btn'),
+    resetTokenBtn: document.getElementById('reset-token-btn')
   };
 
   // 当前编辑的配置ID
@@ -55,6 +63,9 @@
 
     // 加载缓存统计
     await loadCacheStats();
+
+    // 加载token统计
+    await loadTokenStats();
 
     // 绑定事件
     bindEvents();
@@ -95,6 +106,10 @@
     // 缓存管理按钮
     elements.refreshCacheBtn.addEventListener('click', handleRefreshCache);
     elements.clearAllCacheBtn.addEventListener('click', handleClearAllCache);
+
+    // Token统计按钮
+    elements.refreshTokenBtn.addEventListener('click', handleRefreshToken);
+    elements.resetTokenBtn.addEventListener('click', handleResetToken);
 
     // ESC键关闭模态框
     document.addEventListener('keydown', (e) => {
@@ -490,6 +505,83 @@
       elements.clearAllCacheBtn.disabled = false;
       elements.clearAllCacheBtn.textContent = '清空所有缓存';
       showToast('清空失败，请重试', 'error');
+    }
+  }
+
+  /**
+   * 加载Token使用统计信息
+   */
+  async function loadTokenStats() {
+    try {
+      const stats = await StorageUtils.getTokenUsage();
+      
+      // 格式化数字，添加千位分隔符
+      elements.totalTokens.textContent = stats.totalTokens.toLocaleString();
+      elements.promptTokens.textContent = stats.totalPromptTokens.toLocaleString();
+      elements.completionTokens.textContent = stats.totalCompletionTokens.toLocaleString();
+      elements.requestCount.textContent = stats.requestCount.toLocaleString();
+      
+      // 更新最后更新时间
+      if (stats.lastUpdated) {
+        const date = new Date(stats.lastUpdated);
+        const dateStr = date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        elements.tokenLastUpdated.textContent = `• 最后更新：${dateStr}`;
+      } else {
+        elements.tokenLastUpdated.textContent = '• 未有统计数据';
+      }
+    } catch (error) {
+      console.error('加载Token统计失败:', error);
+      elements.totalTokens.textContent = '错误';
+      elements.promptTokens.textContent = '错误';
+      elements.completionTokens.textContent = '错误';
+      elements.requestCount.textContent = '错误';
+    }
+  }
+
+  /**
+   * 处理刷新Token统计
+   */
+  async function handleRefreshToken() {
+    elements.refreshTokenBtn.disabled = true;
+    elements.refreshTokenBtn.textContent = '刷新中...';
+    
+    await loadTokenStats();
+    
+    elements.refreshTokenBtn.disabled = false;
+    elements.refreshTokenBtn.textContent = '刷新统计';
+    showToast('Token统计已刷新', 'success');
+  }
+
+  /**
+   * 处理重置Token统计
+   */
+  async function handleResetToken() {
+    if (!confirm('确定要重置Token使用统计吗？此操作不可恢复！')) {
+      return;
+    }
+    
+    elements.resetTokenBtn.disabled = true;
+    elements.resetTokenBtn.textContent = '重置中...';
+    
+    try {
+      await StorageUtils.resetTokenUsage();
+      await loadTokenStats();
+      
+      elements.resetTokenBtn.disabled = false;
+      elements.resetTokenBtn.textContent = '重置统计';
+      
+      showToast('Token统计已重置', 'success');
+    } catch (error) {
+      console.error('重置Token统计失败:', error);
+      elements.resetTokenBtn.disabled = false;
+      elements.resetTokenBtn.textContent = '重置统计';
+      showToast('重置失败，请重试', 'error');
     }
   }
 
