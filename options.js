@@ -26,6 +26,25 @@
     testBtn: document.getElementById('test-btn'),
     saveBtn: document.getElementById('save-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
+    // TTS配置元素
+    ttsEmptyState: document.getElementById('tts-empty-state'),
+    ttsConfigList: document.getElementById('tts-config-list'),
+    addTtsConfigBtn: document.getElementById('add-tts-config-btn'),
+    ttsConfigModal: document.getElementById('tts-config-modal'),
+    ttsModalOverlay: document.getElementById('tts-modal-overlay'),
+    ttsModalClose: document.getElementById('tts-modal-close'),
+    ttsModalTitle: document.getElementById('tts-modal-title'),
+    ttsConfigForm: document.getElementById('tts-config-form'),
+    ttsConfigId: document.getElementById('tts-config-id'),
+    ttsConfigName: document.getElementById('tts-config-name'),
+    ttsConfigEndpoint: document.getElementById('tts-config-endpoint'),
+    ttsConfigApiKey: document.getElementById('tts-config-apikey'),
+    ttsConfigModel: document.getElementById('tts-config-model'),
+    ttsConfigVoice: document.getElementById('tts-config-voice'),
+    toggleTtsApiKey: document.getElementById('toggle-tts-apikey'),
+    ttsSaveBtn: document.getElementById('tts-save-btn'),
+    ttsCancelBtn: document.getElementById('tts-cancel-btn'),
+    // 用户偏好元素
     defaultTargetLang: document.getElementById('default-target-lang'),
     autoShowPopup: document.getElementById('auto-show-popup'),
     maxTextLength: document.getElementById('max-text-length'),
@@ -48,13 +67,17 @@
 
   // 当前编辑的配置ID
   let editingConfigId = null;
+  let editingTtsConfigId = null;
 
   /**
    * 初始化
    */
   async function init() {
-    // 加载API配置列表
+    // 加载翻译API配置列表
     await loadConfigs();
+
+    // 加载TTS API配置列表
+    await loadTtsConfigs();
 
     // 加载用户偏好设置
     await loadPreferences();
@@ -78,22 +101,35 @@
    * 绑定事件
    */
   function bindEvents() {
-    // 添加配置按钮
+    // 翻译API配置按钮
     elements.addConfigBtn.addEventListener('click', () => {
       editingConfigId = null;
-      openModal('添加API配置');
+      openModal('添加翻译API配置');
     });
 
-    // 模态框关闭
+    // TTS API配置按钮
+    elements.addTtsConfigBtn.addEventListener('click', () => {
+      editingTtsConfigId = null;
+      openTtsModal('添加TTS API配置');
+    });
+
+    // 翻译API模态框关闭
     elements.modalClose.addEventListener('click', closeModal);
     elements.modalOverlay.addEventListener('click', closeModal);
     elements.cancelBtn.addEventListener('click', closeModal);
 
+    // TTS API模态框关闭
+    elements.ttsModalClose.addEventListener('click', closeTtsModal);
+    elements.ttsModalOverlay.addEventListener('click', closeTtsModal);
+    elements.ttsCancelBtn.addEventListener('click', closeTtsModal);
+
     // 切换密钥可见性
     elements.toggleApiKey.addEventListener('click', toggleApiKeyVisibility);
+    elements.toggleTtsApiKey.addEventListener('click', toggleTtsApiKeyVisibility);
 
     // 表单提交
     elements.configForm.addEventListener('submit', handleFormSubmit);
+    elements.ttsConfigForm.addEventListener('submit', handleTtsFormSubmit);
 
     // 测试连接
     elements.testBtn.addEventListener('click', handleTestConnection);
@@ -114,14 +150,19 @@
 
     // ESC键关闭模态框
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && elements.configModal.classList.contains('show')) {
-        closeModal();
+      if (e.key === 'Escape') {
+        if (elements.configModal.classList.contains('show')) {
+          closeModal();
+        }
+        if (elements.ttsConfigModal.classList.contains('show')) {
+          closeTtsModal();
+        }
       }
     });
   }
 
   /**
-   * 加载API配置列表
+   * 加载翻译API配置列表
    */
   async function loadConfigs() {
     const configs = await StorageUtils.getApiConfigs();
@@ -143,7 +184,7 @@
   }
 
   /**
-   * 创建配置卡片HTML
+   * 创建翻译API配置卡片HTML
    */
   function createConfigCard(config) {
     const createdDate = new Date(config.createdAt).toLocaleDateString('zh-CN');
@@ -188,7 +229,7 @@
   }
 
   /**
-   * 绑定配置卡片事件
+   * 绑定翻译API配置卡片事件
    */
   function bindConfigCardEvents() {
     // 激活按钮
@@ -197,7 +238,7 @@
         const id = e.target.dataset.id;
         await StorageUtils.setActiveApiConfig(id);
         await loadConfigs();
-        showToast('已切换API配置', 'success');
+        showToast('已切换翻译API配置', 'success');
       });
     });
 
@@ -209,7 +250,7 @@
         const config = configs.find(c => c.id === id);
         if (config) {
           editingConfigId = id;
-          openModal('编辑API配置');
+          openModal('编辑翻译API配置');
           fillFormWithConfig(config);
         }
       });
@@ -219,7 +260,7 @@
     document.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.target.dataset.id;
-        if (confirm('确定要删除这个API配置吗？')) {
+        if (confirm('确定要删除这个翻译API配置吗？')) {
           await StorageUtils.deleteApiConfig(id);
           await loadConfigs();
           showToast('配置已删除', 'success');
@@ -229,7 +270,7 @@
   }
 
   /**
-   * 打开模态框
+   * 打开翻译API模态框
    */
   function openModal(title) {
     elements.modalTitle.textContent = title;
@@ -242,7 +283,7 @@
   }
 
   /**
-   * 关闭模态框
+   * 关闭翻译API模态框
    */
   function closeModal() {
     elements.configModal.classList.remove('show');
@@ -251,7 +292,7 @@
   }
 
   /**
-   * 填充表单（编辑时）
+   * 填充翻译API表单（编辑时）
    */
   function fillFormWithConfig(config) {
     elements.configId.value = config.id;
@@ -263,7 +304,19 @@
   }
 
   /**
-   * 切换API密钥可见性
+   * 切换TTS API密钥可见性
+   */
+  function toggleTtsApiKeyVisibility() {
+    const input = elements.ttsConfigApiKey;
+    if (input.type === 'password') {
+      input.type = 'text';
+    } else {
+      input.type = 'password';
+    }
+  }
+
+  /**
+   * 切换翻译API密钥可见性
    */
   function toggleApiKeyVisibility() {
     const input = elements.configApiKey;
@@ -275,7 +328,7 @@
   }
 
   /**
-   * 处理表单提交
+   * 处理翻译API表单提交
    */
   async function handleFormSubmit(e) {
     e.preventDefault();
@@ -315,11 +368,11 @@
       if (editingConfigId) {
         // 更新配置
         await StorageUtils.updateApiConfig(editingConfigId, configData);
-        showToast('配置已更新', 'success');
+        showToast('翻译API配置已更新', 'success');
       } else {
         // 添加新配置
         await StorageUtils.addApiConfig(configData);
-        showToast('配置已添加', 'success');
+        showToast('翻译API配置已添加', 'success');
       }
 
       closeModal();
@@ -334,7 +387,7 @@
   }
 
   /**
-   * 测试API连接
+   * 测试翻译API连接
    */
   async function handleTestConnection() {
     const configData = {
@@ -366,7 +419,7 @@
       });
 
       if (response.success) {
-        showToast('API连接测试成功！', 'success');
+        showToast('翻译API连接测试成功！', 'success');
       } else {
         showToast(`测试失败：${response.message}`, 'error');
       }
@@ -376,6 +429,201 @@
     } finally {
       elements.testBtn.disabled = false;
       elements.testBtn.textContent = '测试连接';
+    }
+  }
+
+  /**
+   * 加载TTS API配置列表
+   */
+  async function loadTtsConfigs() {
+    const configs = await StorageUtils.getTtsConfigs();
+
+    if (configs.length === 0) {
+      elements.ttsEmptyState.style.display = 'block';
+      elements.ttsConfigList.style.display = 'none';
+      return;
+    }
+
+    elements.ttsEmptyState.style.display = 'none';
+    elements.ttsConfigList.style.display = 'grid';
+
+    // 渲染配置卡片
+    elements.ttsConfigList.innerHTML = configs.map(config => createTtsConfigCard(config)).join('');
+
+    // 绑定卡片按钮事件
+    bindTtsConfigCardEvents();
+  }
+
+  /**
+   * 创建TTS API配置卡片HTML
+   */
+  function createTtsConfigCard(config) {
+    const createdDate = new Date(config.createdAt).toLocaleDateString('zh-CN');
+    const maskedApiKey = maskApiKey(config.apiKey);
+    const model = config.model || 'qwen3-tts-flash';
+    const voice = config.voice || 'Cherry';
+
+    return `
+      <div class="config-card ${config.isActive ? 'active' : ''}" data-id="${config.id}">
+        <div class="config-card-header">
+          <div class="config-card-title">
+            ${escapeHtml(config.name)}
+            ${config.isActive ? '<span class="config-card-badge">当前使用</span>' : ''}
+          </div>
+          <div class="config-card-actions">
+            ${!config.isActive ? `<button class="btn btn-secondary config-card-btn activate-tts-btn" data-id="${config.id}">激活</button>` : ''}
+            <button class="btn btn-secondary config-card-btn edit-tts-btn" data-id="${config.id}">编辑</button>
+            <button class="btn btn-danger config-card-btn delete-tts-btn" data-id="${config.id}">删除</button>
+          </div>
+        </div>
+        <div class="config-card-info">
+          <div class="config-card-endpoint">
+            <strong>端点：</strong>${escapeHtml(config.apiEndpoint)}
+          </div>
+          <div class="config-card-endpoint">
+            <strong>密钥：</strong>${maskedApiKey}
+          </div>
+          <div class="config-card-endpoint">
+            <strong>模型：</strong>${escapeHtml(model)}
+          </div>
+          <div class="config-card-endpoint">
+            <strong>音色：</strong>${escapeHtml(voice)}
+          </div>
+        </div>
+        <div class="config-card-footer">
+          <div class="config-card-meta">
+            <span>创建于：${createdDate}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 绑定TTS API配置卡片事件
+   */
+  function bindTtsConfigCardEvents() {
+    // 激活按钮
+    document.querySelectorAll('.activate-tts-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        await StorageUtils.setActiveTtsConfig(id);
+        await loadTtsConfigs();
+        showToast('已切换TTS API配置', 'success');
+      });
+    });
+
+    // 编辑按钮
+    document.querySelectorAll('.edit-tts-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        const configs = await StorageUtils.getTtsConfigs();
+        const config = configs.find(c => c.id === id);
+        if (config) {
+          editingTtsConfigId = id;
+          openTtsModal('编辑TTS API配置');
+          fillTtsFormWithConfig(config);
+        }
+      });
+    });
+
+    // 删除按钮
+    document.querySelectorAll('.delete-tts-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.dataset.id;
+        if (confirm('确定要删除这个TTS API配置吗？')) {
+          await StorageUtils.deleteTtsConfig(id);
+          await loadTtsConfigs();
+          showToast('TTS配置已删除', 'success');
+        }
+      });
+    });
+  }
+
+  /**
+   * 打开TTS API模态框
+   */
+  function openTtsModal(title) {
+    elements.ttsModalTitle.textContent = title;
+    elements.ttsConfigModal.classList.add('show');
+    // 只有在添加新配置时才重置表单
+    if (!editingTtsConfigId) {
+      elements.ttsConfigForm.reset();
+    }
+    elements.ttsConfigId.value = editingTtsConfigId || '';
+  }
+
+  /**
+   * 关闭TTS API模态框
+   */
+  function closeTtsModal() {
+    elements.ttsConfigModal.classList.remove('show');
+    elements.ttsConfigForm.reset();
+    editingTtsConfigId = null;
+  }
+
+  /**
+   * 填充TTS API表单（编辑时）
+   */
+  function fillTtsFormWithConfig(config) {
+    elements.ttsConfigId.value = config.id;
+    elements.ttsConfigName.value = config.name;
+    elements.ttsConfigEndpoint.value = config.apiEndpoint;
+    elements.ttsConfigApiKey.value = config.apiKey;
+    elements.ttsConfigModel.value = config.model || 'qwen3-tts-flash';
+    elements.ttsConfigVoice.value = config.voice || 'Cherry';
+  }
+
+  /**
+   * 处理TTS API表单提交
+   */
+  async function handleTtsFormSubmit(e) {
+    e.preventDefault();
+
+    const configData = {
+      name: elements.ttsConfigName.value.trim(),
+      apiEndpoint: elements.ttsConfigEndpoint.value.trim(),
+      apiKey: elements.ttsConfigApiKey.value.trim(),
+      model: elements.ttsConfigModel.value.trim() || 'qwen3-tts-flash',
+      voice: elements.ttsConfigVoice.value.trim() || 'Cherry'
+    };
+
+    // 验证
+    if (!configData.name || !configData.apiEndpoint || !configData.apiKey) {
+      showToast('请填写所有必填字段', 'error');
+      return;
+    }
+
+    // 验证URL格式
+    try {
+      new URL(configData.apiEndpoint);
+    } catch {
+      showToast('请输入有效的API端点地址', 'error');
+      return;
+    }
+
+    elements.ttsSaveBtn.disabled = true;
+    elements.ttsSaveBtn.textContent = '保存中...';
+
+    try {
+      if (editingTtsConfigId) {
+        // 更新配置
+        await StorageUtils.updateTtsConfig(editingTtsConfigId, configData);
+        showToast('TTS API配置已更新', 'success');
+      } else {
+        // 添加新配置
+        await StorageUtils.addTtsConfig(configData);
+        showToast('TTS API配置已添加', 'success');
+      }
+
+      closeTtsModal();
+      await loadTtsConfigs();
+    } catch (error) {
+      console.error('Save TTS config error:', error);
+      showToast('保存失败，请重试', 'error');
+    } finally {
+      elements.ttsSaveBtn.disabled = false;
+      elements.ttsSaveBtn.textContent = '保存配置';
     }
   }
 

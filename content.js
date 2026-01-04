@@ -14,6 +14,11 @@
   let debounceTimer = null;
   let userPreferences = null;
   let isDictionaryMode = false;  // 是否为词典模式
+  
+  // 音频播放状态
+  let currentAudio = null;  // 当前正在播放的音频实例
+  let isSynthesizing = false;  // 是否正在合成语音
+  let isPlaying = false;  // 是否正在播放
 
   /**
    * 初始化
@@ -175,12 +180,24 @@
         </div>
         <div class="ai-translate-popup-content">
           <div class="ai-translate-dict-word">
-            <span class="ai-translate-dict-word-text">${escapeHtml(currentSelectedText)}</span>
-            <span class="ai-translate-dict-phonetic" id="ai-translate-phonetic"></span>
+            <div class="ai-translate-dict-word-row">
+              <div class="ai-translate-dict-word-info">
+                <span class="ai-translate-dict-word-text">${escapeHtml(currentSelectedText)}</span>
+                <span class="ai-translate-dict-phonetic" id="ai-translate-phonetic"></span>
+              </div>
+              <button class="ai-translate-tts-btn" id="ai-translate-word-tts" title="播放单词发音">
+                <span class="ai-translate-tts-icon">🔊</span>
+              </button>
+            </div>
           </div>
           ${currentContext ? `
           <div class="ai-translate-dict-context">
-            <div class="ai-translate-dict-context-label">📝 上下文</div>
+            <div class="ai-translate-dict-context-header">
+              <div class="ai-translate-dict-context-label">📝 上下文</div>
+              <button class="ai-translate-tts-btn ai-translate-tts-btn-small" id="ai-translate-sentence-tts" title="播放句子发音">
+                <span class="ai-translate-tts-icon">🔊</span>
+              </button>
+            </div>
             <div class="ai-translate-dict-context-text" id="ai-translate-context">${escapeHtml(currentContext).replace(new RegExp(`(${escapeHtml(currentSelectedText)})`, 'gi'), '<mark class="ai-translate-highlight">$1</mark>')}</div>
             <div class="ai-translate-dict-context-trans" id="ai-translate-context-trans"></div>
           </div>
@@ -251,7 +268,17 @@
 
     // 词典模式和翻译模式的不同处理
     if (isDictionaryMode) {
-      // 词典模式：执行词典查询
+      // 词典模式：绑定TTS按钮事件并执行词典查询
+      const wordTtsBtn = popup.querySelector('#ai-translate-word-tts');
+      if (wordTtsBtn) {
+        wordTtsBtn.addEventListener('click', () => handleTTS(currentSelectedText, 'word'));
+      }
+      
+      const sentenceTtsBtn = popup.querySelector('#ai-translate-sentence-tts');
+      if (sentenceTtsBtn) {
+        sentenceTtsBtn.addEventListener('click', () => handleTTS(currentContext, 'sentence'));
+      }
+      
       performDictionaryLookup();
     } else {
       // 翻译模式：绑定语言切换事件并执行翻译
@@ -724,9 +751,406 @@
   }
 
   /**
+   * 处理TTS请求（文本转语音）
+   * @param {string} text - 待合成的文本
+   * @param {string} type - 类型：'word' 或 'sentence'
+   */
+  async function handleTTS(text, type) {
+    if (!text || isSynthesizing) return;
+    
+    // 获取对应的按钮
+    const btnId = type === 'word' ? 'ai-translate-word-tts' : 'ai-translate-sentence-tts';
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    
+    // 如果正在播放，停止播放
+    if (isPlaying && currentAudio) {
+      stopAudio();
+      updateTTSButtonState(btn, 'default');
+      return;
+    }
+    
+    try {
+      // 更新按钮状态为加载中
+      isSynthesizing = true;
+      updateTTSButtonState(btn, 'loading');
+      
+      // 请求TTS服务
+      const response = await chrome.runtime.sendMessage({
+        action: 'text-to-speech',
+        text: text,
+        type: type
+      });
+      
+      if (response.success) {
+        // 创建音频对象并播放
+        currentAudio = new Audio();
+        
+        // 监听播放事件
+        currentAudio.onloadeddata = () => {
+          isSynthesizing = false;
+          isPlaying = true;
+          updateTTSButtonState(btn, 'playing');
+          currentAudio.play().catch(err => {
+            console.error('Audio play error:', err);
+            showTTSError(btn, '播放失败');
+          });
+        };
+        
+        currentAudio.onended = () => {
+          isPlaying = false;
+          updateTTSButtonState(btn, 'default');
+          currentAudio = null;
+        };
+        
+        currentAudio.onerror = (err) => {
+          console.error('Audio load error:', err);
+          console.error('Audio error details:', {
+            error: currentAudio.error,
+            networkState: currentAudio.networkState,
+            readyState: currentAudio.readyState,
+            src: currentAudio.src.substring(0, 100)
+          });
+          isSynthesizing = false;
+          isPlaying = false;
+          showTTSError(btn, '加载失败');
+        };
+        
+        // 加载音频数据
+        if (response.audioUrl) {
+          currentAudio.src = response.audioUrl;
+        } else if (response.audioData) {
+          // 如果是Base64数据
+          console.log('TTS返回音频数据，Base64长度:', response.audioData.length);
+          
+          // 检查Base64数据的前几个字符
+          const base64Preview = response.audioData.substring(0, 50);
+          console.log('Base64数据预览:', base64Preview);
+          
+          // 尝试检测实际的音频格式
+          const detectedFormat = detectAudioFormat(response.audioData);
+          console.log('检测到的音频格式:', detectedFormat);
+          
+          // 使用检测到的格式，默认为mp3
+          const actualFormat = detectedFormat || 'mp3';
+          
+          try {
+            const audioBlob = base64ToBlob(response.audioData, actualFormat);
+            console.log('音频Blob创建成功，大小:', audioBlob.size, 'bytes, 类型:', audioBlob.type);
+            
+            // 验证Blob是否有效
+            if (audioBlob.size === 0) {
+              throw new Error('生成的Blob大小为0');
+            }
+            
+            // 检查浏览器是否支持该音频格式
+            const canPlay = currentAudio.canPlayType(audioBlob.type);
+            console.log('浏览器支持该格式:', canPlay, '("probably" or "maybe" 表示支持)');
+            
+            const blobUrl = URL.createObjectURL(audioBlob);
+            console.log('Blob URL创建成功:', blobUrl);
+            
+            // 添加更多调试事件
+            currentAudio.addEventListener('loadstart', () => {
+              console.log('音频开始加载...');
+            }, { once: true });
+            
+            currentAudio.addEventListener('loadedmetadata', () => {
+              console.log('音频元数据已加载，时长:', currentAudio.duration);
+            }, { once: true });
+            
+            currentAudio.addEventListener('loadeddata', () => {
+              console.log('音频数据已加载');
+            }, { once: true });
+            
+            currentAudio.addEventListener('canplay', () => {
+              console.log('音频可以播放');
+            }, { once: true });
+            
+            // 设置音频源
+            currentAudio.src = blobUrl;
+            
+            // 尝试预加载
+            currentAudio.load();
+            console.log('开始预加载音频数据...');
+            
+            // 清理旧的Blob URL
+            currentAudio.addEventListener('ended', () => {
+              URL.revokeObjectURL(blobUrl);
+            }, { once: true });
+            
+            // 也在错误时清理
+            currentAudio.addEventListener('error', () => {
+              URL.revokeObjectURL(blobUrl);
+            }, { once: true });
+            
+          } catch (blobError) {
+            console.error('创建音频Blob失败:', blobError);
+            isSynthesizing = false;
+            showTTSError(btn, '音频格式错误');
+            return;
+          }
+        } else {
+          console.error('TTS响应中没有音频数据');
+          isSynthesizing = false;
+          showTTSError(btn, '无音频数据');
+          return;
+        }
+      } else {
+        isSynthesizing = false;
+        showTTSError(btn, response.errorMessage || '合成失败');
+      }
+    } catch (error) {
+      console.error('TTS error:', error);
+      isSynthesizing = false;
+      showTTSError(btn, '请求失败');
+    }
+  }
+  
+  /**
+   * 更新TTS按钮状态
+   * @param {HTMLElement} btn - 按钮元素
+   * @param {string} state - 状态：'default', 'loading', 'playing'
+   */
+  function updateTTSButtonState(btn, state) {
+    if (!btn) return;
+    
+    const icon = btn.querySelector('.ai-translate-tts-icon');
+    if (!icon) return;
+    
+    // 移除所有状态类
+    btn.classList.remove('loading', 'playing');
+    
+    switch (state) {
+      case 'loading':
+        btn.classList.add('loading');
+        icon.textContent = '⏳';
+        btn.disabled = false;
+        btn.title = '正在合成...';
+        break;
+      case 'playing':
+        btn.classList.add('playing');
+        icon.textContent = '⏸️';
+        btn.disabled = false;
+        btn.title = '停止播放';
+        break;
+      default:
+        icon.textContent = '🔊';
+        btn.disabled = false;
+        btn.title = state === 'word' ? '播放单词发音' : '播放句子发音';
+    }
+  }
+  
+  /**
+   * 显示TTS错误
+   * @param {HTMLElement} btn - 按钮元素
+   * @param {string} message - 错误消息
+   */
+  function showTTSError(btn, message) {
+    if (!btn) return;
+    
+    const icon = btn.querySelector('.ai-translate-tts-icon');
+    if (icon) {
+      icon.textContent = '⚠️';
+      btn.title = message;
+    }
+    
+    // 2秒后恢复默认状态
+    setTimeout(() => {
+      updateTTSButtonState(btn, 'default');
+    }, 2000);
+  }
+  
+  /**
+   * 停止音频播放
+   */
+  function stopAudio() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    isPlaying = false;
+  }
+  
+  /**
+   * 将Base64字符串转换为Blob对象
+   * @param {string} base64 - Base64编码的数据
+   * @param {string} format - 音频格式（mp3, wav等）
+   * @returns {Blob}
+   */
+  function base64ToBlob(base64, format) {
+    try {
+      // 清理Base64字符串（移除可能的空白字符和换行符）
+      const cleanBase64 = base64.replace(/\s/g, '');
+      
+      // 确定MIME类型
+      let mimeType;
+      switch (format.toLowerCase()) {
+        case 'wav':
+          mimeType = 'audio/wav';
+          break;
+        case 'opus':
+          mimeType = 'audio/opus';
+          break;
+        case 'aac':
+          mimeType = 'audio/aac';
+          break;
+        case 'flac':
+          mimeType = 'audio/flac';
+          break;
+        case 'pcm':
+          // PCM需要转换为WAV格式才能播放
+          return pcmToWav(cleanBase64);
+        case 'mp3':
+        default:
+          mimeType = 'audio/mpeg';
+          break;
+      }
+      
+      // 解码Base64
+      const byteCharacters = atob(cleanBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    } catch (error) {
+      console.error('Base64解码失败:', error);
+      console.error('Base64数据预览:', base64.substring(0, 100) + '...');
+      throw new Error('音频数据解码失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 将PCM数据转换为WAV格式
+   * @param {string} base64Pcm - Base64编码的PCM数据
+   * @returns {Blob} WAV格式Blob
+   */
+  function pcmToWav(base64Pcm) {
+    try {
+      // 解码Base64获取PCM数据
+      const byteCharacters = atob(base64Pcm);
+      const pcmData = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        pcmData[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      // WAV文件参数
+      const numChannels = 1; // 单声道
+      const sampleRate = 24000; // 采样率
+      const bitsPerSample = 16; // 每个采样的位数
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const byteRate = sampleRate * blockAlign;
+      const dataSize = pcmData.length;
+      const fileSize = 36 + dataSize;
+      
+      // 创建WAV文件头
+      const wavHeader = new ArrayBuffer(44);
+      const view = new DataView(wavHeader);
+      
+      // RIFF chunk descriptor
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, fileSize, true);
+      writeString(view, 8, 'WAVE');
+      
+      // fmt sub-chunk
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true); // fmt chunk size
+      view.setUint16(20, 1, true); // audio format (1 = PCM)
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      
+      // data sub-chunk
+      writeString(view, 36, 'data');
+      view.setUint32(40, dataSize, true);
+      
+      // 合并header和PCM数据
+      const wavData = new Uint8Array(44 + dataSize);
+      wavData.set(new Uint8Array(wavHeader), 0);
+      wavData.set(pcmData, 44);
+      
+      console.log('PCM转换为WAV成功，文件大小:', wavData.length);
+      return new Blob([wavData], { type: 'audio/wav' });
+    } catch (error) {
+      console.error('PCM转换为WAV失败:', error);
+      throw new Error('PCM转换失败: ' + error.message);
+    }
+  }
+  
+  /**
+   * 检测音频数据的实际格式
+   * @param {string} base64Data - Base64编码的音频数据
+   * @returns {string|null} 检测到的格式，或null
+   */
+  function detectAudioFormat(base64Data) {
+    try {
+      // 解码前几个字节来检测文件头
+      const prefix = base64Data.substring(0, 20);
+      const bytes = atob(prefix);
+      const header = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) {
+        header[i] = bytes.charCodeAt(i);
+      }
+      
+      // MP3: 以 0xFF 0xFB 或 0xFF 0xF3 开头，或 ID3 tag
+      if ((header[0] === 0xFF && (header[1] & 0xE0) === 0xE0) ||
+          (header[0] === 0x49 && header[1] === 0x44 && header[2] === 0x33)) { // "ID3"
+        return 'mp3';
+      }
+      
+      // WAV: 以 "RIFF" 开头
+      if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) { // "RIFF"
+        return 'wav';
+      }
+      
+      // Opus: 以 "OggS" 开头
+      if (header[0] === 0x4F && header[1] === 0x67 && header[2] === 0x67 && header[3] === 0x53) { // "OggS"
+        return 'opus';
+      }
+      
+      // AAC: 以 0xFF 0xF1 或 0xFF 0xF9 开头
+      if (header[0] === 0xFF && (header[1] === 0xF1 || header[1] === 0xF9)) {
+        return 'aac';
+      }
+      
+      // FLAC: 以 "fLaC" 开头
+      if (header[0] === 0x66 && header[1] === 0x4C && header[2] === 0x61 && header[3] === 0x43) { // "fLaC"
+        return 'flac';
+      }
+      
+      // 如果都不匹配，可能是PCM原始数据
+      // PCM通常没有特定的文件头，其值较小
+      console.log('未检测到知名音频格式，可能是PCM数据');
+      return 'pcm';
+    } catch (error) {
+      console.error('检测音频格式失败:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * 向DataView写入字符串
+   */
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  /**
    * 关闭弹窗
    */
   function closePopup() {
+    // 停止正在播放的音频
+    stopAudio();
+    
     if (currentPopup) {
       currentPopup.remove();
       currentPopup = null;

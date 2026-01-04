@@ -351,6 +351,251 @@ const TranslationService = {
 };
 
 /**
+ * TTS服务（文本转语音）
+ */
+const TTSService = {
+  /**
+   * 合成语音
+   * @param {string} text - 待合成的文本
+   * @param {string} type - 类型：'word' 或 'sentence'
+   * @returns {Promise<Object>} TTS结果
+   */
+  async synthesizeSpeech(text, type) {
+    try {
+      // 获取当前激活的TTS配置
+      const ttsConfig = await StorageUtils.getActiveTtsConfig();
+      if (!ttsConfig) {
+        return {
+          success: false,
+          errorMessage: '未配置TTS API，请先在设置页面添加TTS配置',
+          errorCode: 'NO_TTS_CONFIG'
+        };
+      }
+      
+      // 调用通义千问TTS API
+      const result = await this.callQwenTTSAPI(ttsConfig, text);
+      return result;
+      
+    } catch (error) {
+      console.error('TTS synthesis error:', error);
+      return {
+        success: false,
+        errorMessage: error.message || '语音合成失败，请稍后重试',
+        errorCode: 'TTS_ERROR'
+      };
+    }
+  },
+  
+  /**
+   * 调用通义千问TTS API
+   * @param {Object} ttsConfig - TTS配置
+   * @param {string} text - 待转换的文本
+   * @returns {Promise<Object>} API响应
+   */
+  async callQwenTTSAPI(ttsConfig, text) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    
+    try {
+      // 获取TTS配置
+      const ttsModel = ttsConfig.model || 'qwen3-tts-flash';
+      const ttsVoice = ttsConfig.voice || 'Cherry';
+      
+      // 构建通义千问TTS请求端点
+      const ttsEndpoint = ttsConfig.apiEndpoint.replace(/\/+$/, '');
+      
+      const requestBody = {
+        model: ttsModel,
+        input: {
+          text: text,
+          voice: ttsVoice,
+        }
+      };
+      
+      const response = await fetch(ttsEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ttsConfig.apiKey}`,
+          'X-DashScope-SSE': 'enable' // 启用流式输出
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // 处理不同的错误状态码
+        if (response.status === 401) {
+          return {
+            success: false,
+            errorMessage: 'API密钥无效，请检查配置',
+            errorCode: 'INVALID_API_KEY'
+          };
+        } else if (response.status === 429) {
+          return {
+            success: false,
+            errorMessage: 'API调用频率超限，请稍后重试',
+            errorCode: 'RATE_LIMIT'
+          };
+        }
+        
+        return {
+          success: false,
+          errorMessage: errorData.message || errorData.error?.message || `TTS API错误 (${response.status})`,
+          errorCode: 'TTS_API_ERROR'
+        };
+      }
+      
+      // 处理流式响应
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let audioChunks = [];
+      let buffer = ''; // 用于处理跨chunk的数据
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+          
+          // 解码数据块并添加到缓冲区
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          
+          // 保留最后一个不完整的行
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+            
+            // 处理不同的SSE字段
+            if (trimmedLine.startsWith('id:')) {
+              // 忽略id字段
+              continue;
+            } else if (trimmedLine.startsWith('event:')) {
+              // 忽略event字段
+              continue;
+            } else if (trimmedLine.startsWith(':')) {
+              // 忽略注释行
+              continue;
+            } else if (trimmedLine.startsWith('data:')) {
+              const data = trimmedLine.slice(5).trim(); // 移除 "data:" 前缀
+              
+              try {
+                const parsed = JSON.parse(data);
+                
+                // 通义千问流式响应中，音频数据在 output.audio.data 字段
+                const audioData = parsed.output?.audio?.data;
+                
+                if (audioData) {
+                  audioChunks.push(audioData);
+                  console.log('收到TTS音频chunk，长度:', audioData.length);
+                  
+                  // 输出首个chunk的详细信息
+                  if (audioChunks.length === 1) {
+                    console.log('首个音频chunk预览:', audioData.substring(0, 50));
+                    console.log('完整响应数据:', JSON.stringify(parsed).substring(0, 500));
+                  }
+                }
+                
+                // 检查是否完成
+                if (parsed.output?.finish_reason && parsed.output.finish_reason !== 'null') {
+                  console.log('TTS生成完成，finish_reason:', parsed.output.finish_reason);
+                }
+              } catch (e) {
+                console.error('解析通义千问TTS流数据失败:', e, 'data:', data);
+              }
+            }
+          }
+        }
+        
+        // 处理缓冲区中剩余的数据
+        if (buffer.trim()) {
+          const trimmedLine = buffer.trim();
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.slice(5).trim();
+            try {
+              const parsed = JSON.parse(data);
+              const audioData = parsed.output?.audio?.data;
+              if (audioData) {
+                audioChunks.push(audioData);
+              }
+            } catch (e) {
+              console.error('解析最后的TTS数据失败:', e);
+            }
+          }
+        }
+      } catch (streamError) {
+        console.error('读取通义千问TTS流失败:', streamError);
+        return {
+          success: false,
+          errorMessage: '流式处理失败: ' + streamError.message,
+          errorCode: 'STREAM_ERROR'
+        };
+      }
+      
+      // 合并所有音频chunk
+      const audioBase64 = audioChunks.join('');
+      
+      if (!audioBase64) {
+        return {
+          success: false,
+          errorMessage: 'API返回数据格式错误，未找到音频数据',
+          errorCode: 'INVALID_RESPONSE'
+        };
+      }
+      
+      console.log('TTS音频数据合并完成，总长度:', audioBase64.length);
+      
+      return {
+        success: true,
+        audioData: audioBase64
+      };
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          errorMessage: '请求超时，请检查网络连接或稍后重试',
+          errorCode: 'TIMEOUT'
+        };
+      }
+      
+      return {
+        success: false,
+        errorMessage: error.message || '网络错误，请检查连接',
+        errorCode: 'NETWORK_ERROR'
+      };
+    }
+  },
+  
+  /**
+   * 将Blob转换为Base64字符串
+   * @param {Blob} blob - Blob对象
+   * @returns {Promise<string>} Base64字符串
+   */
+  blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // 移除Data URL的前缀，只保留Base64数据
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+};
+
+/**
  * 流式翻译连接监听器（默认启用，推荐使用）
  * 使用 Port 长连接支持流式数据传输，提供实时的翻译反馈
  * 优势：
@@ -660,6 +905,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const languages = LanguageDetector.getAllLanguages();
     sendResponse({ languages });
     return false;
+  }
+  
+  // 文本转语音（TTS）
+  if (request.action === 'text-to-speech') {
+    TTSService.synthesizeSpeech(
+      request.text,
+      request.type
+    ).then(sendResponse);
+    return true; // 保持消息通道开放以进行异步响应
   }
 });
 

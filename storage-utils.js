@@ -5,14 +5,14 @@
 
 const StorageUtils = {
   /**
-   * 获取所有API配置
-   * @returns {Promise<Array>} API配置数组
+   * 获取所有翻译API配置
+   * @returns {Promise<Array>} 翻译API配置数组
    */
   async getApiConfigs() {
     const result = await chrome.storage.local.get('apiConfigs');
     const configs = result.apiConfigs || [];
     
-    // 兼容性处理：为旧配置添加默认 model 和 temperature 字段
+    // 兼容性处理：为旧配置添加默认 model、temperature 字段
     return configs.map(config => ({
       ...config,
       model: config.model,
@@ -30,7 +30,7 @@ const StorageUtils = {
   },
 
   /**
-   * 添加新的API配置
+   * 添加新的翻译API配置
    * @param {Object} config - 新配置对象
    * @returns {Promise<Object>} 添加后的配置（包含ID）
    */
@@ -63,7 +63,7 @@ const StorageUtils = {
   },
 
   /**
-   * 更新API配置
+   * 更新翻译API配置
    * @param {string} id - 配置ID
    * @param {Object} updates - 更新的字段
    * @returns {Promise<Object|null>} 更新后的配置
@@ -92,7 +92,7 @@ const StorageUtils = {
   },
 
   /**
-   * 删除API配置
+   * 删除翻译API配置
    * @param {string} id - 配置ID
    * @returns {Promise<boolean>} 是否删除成功
    */
@@ -117,7 +117,7 @@ const StorageUtils = {
   },
 
   /**
-   * 获取当前激活的API配置
+   * 获取当前激活的翻译API配置
    * @returns {Promise<Object|null>} 激活的配置
    */
   async getActiveApiConfig() {
@@ -126,7 +126,7 @@ const StorageUtils = {
   },
 
   /**
-   * 设置激活的API配置
+   * 设置激活的翻译API配置
    * @param {string} id - 配置ID
    * @returns {Promise<boolean>} 是否设置成功
    */
@@ -140,6 +140,145 @@ const StorageUtils = {
 
     configs.forEach(c => c.isActive = (c.id === id));
     await this.saveApiConfigs(configs);
+    return true;
+  },
+
+  /**
+   * 获取所有TTS配置
+   * @returns {Promise<Array>} TTS配置数组
+   */
+  async getTtsConfigs() {
+    const result = await chrome.storage.local.get('ttsConfigs');
+    const configs = result.ttsConfigs || [];
+    
+    // 兼容性处理：为旧配置添加默认字段
+    return configs.map(config => ({
+      ...config,
+      model: config.model || 'qwen3-tts-flash',
+      voice: config.voice || 'Cherry'
+    }));
+  },
+
+  /**
+   * 保存TTS配置列表
+   * @param {Array} configs - TTS配置数组
+   * @returns {Promise<void>}
+   */
+  async saveTtsConfigs(configs) {
+    await chrome.storage.local.set({ ttsConfigs: configs });
+  },
+
+  /**
+   * 添加新的TTS配置
+   * @param {Object} config - 新配置对象
+   * @returns {Promise<Object>} 添加后的配置（包含ID）
+   */
+  async addTtsConfig(config) {
+    const configs = await this.getTtsConfigs();
+    
+    // 如果是第一个配置，自动设置为激活
+    const isFirstConfig = configs.length === 0;
+    
+    const newConfig = {
+      id: this.generateId(),
+      name: config.name,
+      apiEndpoint: config.apiEndpoint,
+      apiKey: config.apiKey,
+      model: config.model || 'qwen3-tts-flash',
+      voice: config.voice || 'Cherry',
+      isActive: isFirstConfig || config.isActive || false,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    // 如果新配置设为激活，需要将其他配置设为非激活
+    if (newConfig.isActive) {
+      configs.forEach(c => c.isActive = false);
+    }
+
+    configs.push(newConfig);
+    await this.saveTtsConfigs(configs);
+    return newConfig;
+  },
+
+  /**
+   * 更新TTS配置
+   * @param {string} id - 配置ID
+   * @param {Object} updates - 更新的字段
+   * @returns {Promise<Object|null>} 更新后的配置
+   */
+  async updateTtsConfig(id, updates) {
+    const configs = await this.getTtsConfigs();
+    const index = configs.findIndex(c => c.id === id);
+    
+    if (index === -1) {
+      return null;
+    }
+
+    // 如果设为激活，需要将其他配置设为非激活
+    if (updates.isActive) {
+      configs.forEach(c => c.isActive = false);
+    }
+
+    configs[index] = {
+      ...configs[index],
+      ...updates,
+      updatedAt: Date.now()
+    };
+
+    await this.saveTtsConfigs(configs);
+    return configs[index];
+  },
+
+  /**
+   * 删除TTS配置
+   * @param {string} id - 配置ID
+   * @returns {Promise<boolean>} 是否删除成功
+   */
+  async deleteTtsConfig(id) {
+    const configs = await this.getTtsConfigs();
+    const index = configs.findIndex(c => c.id === id);
+    
+    if (index === -1) {
+      return false;
+    }
+
+    const wasActive = configs[index].isActive;
+    configs.splice(index, 1);
+
+    // 如果删除的是激活配置，且还有其他配置，激活第一个
+    if (wasActive && configs.length > 0) {
+      configs[0].isActive = true;
+    }
+
+    await this.saveTtsConfigs(configs);
+    return true;
+  },
+
+  /**
+   * 获取当前激活的TTS配置
+   * @returns {Promise<Object|null>} 激活的配置
+   */
+  async getActiveTtsConfig() {
+    const configs = await this.getTtsConfigs();
+    return configs.find(c => c.isActive) || null;
+  },
+
+  /**
+   * 设置激活的TTS配置
+   * @param {string} id - 配置ID
+   * @returns {Promise<boolean>} 是否设置成功
+   */
+  async setActiveTtsConfig(id) {
+    const configs = await this.getTtsConfigs();
+    const targetConfig = configs.find(c => c.id === id);
+    
+    if (!targetConfig) {
+      return false;
+    }
+
+    configs.forEach(c => c.isActive = (c.id === id));
+    await this.saveTtsConfigs(configs);
     return true;
   },
 

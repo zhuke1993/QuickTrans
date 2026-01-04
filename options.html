@@ -54,37 +54,62 @@
         </div>
       </section>
 
-      <!-- API配置列表 -->
+      <!-- 翻译API配置列表 -->
       <section class="config-section">
         <div class="section-header">
-          <h2 class="section-title">API配置管理</h2>
+          <h2 class="section-title">🌐 文本翻译API配置</h2>
           <button class="btn btn-primary" id="add-config-btn">
             <span class="btn-icon">+</span>
-            添加新配置
+            添加配置
           </button>
         </div>
-
+      
         <!-- 空状态 -->
         <div class="empty-state" id="empty-state">
           <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
           </svg>
-          <p class="empty-text">还没有配置任何API</p>
-          <p class="empty-hint">点击"添加新配置"按钮开始设置</p>
+          <p class="empty-text">还没有配置任何翻译API</p>
+          <p class="empty-hint">点击“添加配置”按钮开始设置</p>
         </div>
-
+      
         <!-- 配置列表 -->
         <div class="config-list" id="config-list">
           <!-- 配置卡片将动态插入这里 -->
         </div>
       </section>
+      
+      <!-- TTS API配置列表 -->
+      <section class="config-section">
+        <div class="section-header">
+          <h2 class="section-title">🔊 语音合成API配置</h2>
+          <button class="btn btn-primary" id="add-tts-config-btn">
+            <span class="btn-icon">+</span>
+            添加配置
+          </button>
+        </div>
+      
+        <!-- 空状态 -->
+        <div class="empty-state" id="tts-empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          <p class="empty-text">还没有配置任何TTS API</p>
+          <p class="empty-hint">点击“添加配置”按钮开始设置，为词典模式添加语音功能</p>
+        </div>
+      
+        <!-- TTS配置列表 -->
+        <div class="config-list" id="tts-config-list">
+          <!-- TTS配置卡片将动态插入这里 -->
+        </div>
+      </section>
 
-      <!-- 配置表单（模态框） -->
+      <!-- 翻译API配置表单（模态框） -->
       <div class="modal" id="config-modal">
         <div class="modal-overlay" id="modal-overlay"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3 class="modal-title" id="modal-title">添加API配置</h3>
+            <h3 class="modal-title" id="modal-title">添加翻译API配置</h3>
             <button class="modal-close" id="modal-close">×</button>
           </div>
           <div class="modal-body">
@@ -95,10 +120,10 @@
                   type="text" 
                   id="config-name" 
                   class="form-input" 
-                  placeholder="例如：OpenAI GPT-3.5"
+                  placeholder="例如：OpenAI GPT-4o-mini"
                   required
                 >
-                <span class="form-hint">为这个API配置起一个容易识别的名称</span>
+                <span class="form-hint">为这个翻译API配置起一个容易识别的名称</span>
               </div>
 
               <div class="form-group">
@@ -169,6 +194,94 @@
             <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
             <button type="button" class="btn btn-test" id="test-btn">测试连接</button>
             <button type="submit" class="btn btn-primary" id="save-btn" form="config-form">保存配置</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TTS API配置表单（模态框） -->
+      <div class="modal" id="tts-config-modal">
+        <div class="modal-overlay" id="tts-modal-overlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title" id="tts-modal-title">添加TTS API配置</h3>
+            <button class="modal-close" id="tts-modal-close">×</button>
+          </div>
+          <div class="modal-body">
+            <form id="tts-config-form">
+              <div class="form-group">
+                <label for="tts-config-name" class="form-label">配置名称 <span class="required">*</span></label>
+                <input 
+                  type="text" 
+                  id="tts-config-name" 
+                  class="form-input" 
+                  placeholder="例如：通义千问 TTS"
+                  required
+                >
+                <span class="form-hint">为这个TTS API配置起一个容易识别的名称</span>
+              </div>
+
+              <div class="form-group">
+                <label for="tts-config-endpoint" class="form-label">API端点地址 <span class="required">*</span></label>
+                <input 
+                  type="url" 
+                  id="tts-config-endpoint" 
+                  class="form-input" 
+                  placeholder="https://dashscope.aliyuncs.com"
+                  required
+                >
+                <span class="form-hint" id="tts-endpoint-hint">通义千问API端点</span>
+              </div>
+
+              <div class="form-group">
+                <label for="tts-config-apikey" class="form-label">API密钥 <span class="required">*</span></label>
+                <div class="input-group">
+                  <input 
+                    type="password" 
+                    id="tts-config-apikey" 
+                    class="form-input" 
+                    placeholder="sk-..."
+                    required
+                  >
+                  <button type="button" class="input-toggle" id="toggle-tts-apikey">
+                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </button>
+                </div>
+                <span class="form-hint">API密钥仅存储在本地浏览器中</span>
+              </div>
+
+              <div class="form-group">
+                <label for="tts-config-model" class="form-label">TTS模型</label>
+                <input 
+                  type="text" 
+                  id="tts-config-model" 
+                  class="form-input" 
+                  placeholder="qwen3-tts-flash"
+                  value="qwen3-tts-flash"
+                >
+                <span class="form-hint" id="tts-model-hint">可选模型: qwen3-tts-flash (推荐), qwen3-tts-lite</span>
+              </div>
+
+              <div class="form-group">
+                <label for="tts-config-voice" class="form-label">音色选择</label>
+                <input 
+                  type="text" 
+                  id="tts-config-voice" 
+                  class="form-input" 
+                  placeholder="Cherry"
+                  value="Cherry"
+                >
+                <span class="form-hint" id="tts-voice-hint">可选音色: Cherry, Olivia, Luna, Daniel 等</span>
+              </div>
+
+              <input type="hidden" id="tts-config-id">
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="tts-cancel-btn">取消</button>
+            <button type="submit" class="btn btn-primary" id="tts-save-btn" form="tts-config-form">保存配置</button>
           </div>
         </div>
       </div>

@@ -497,3 +497,104 @@
   font-weight: bold;
   margin-right: 4px;
 }
+
+/* ===================== TTS发音按钮样式 ===================== */
+
+/* 单词展示区使用flex布局 */
+.ai-translate-dict-word-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-translate-dict-word-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 上下文头部使用flex布局 */
+.ai-translate-dict-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* TTS按钮基础样式 */
+.ai-translate-tts-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-translate-tts-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.ai-translate-tts-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.ai-translate-tts-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* TTS按钮小尺寸版本（用于上下文区域） */
+.ai-translate-tts-btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* TTS图标 */
+.ai-translate-tts-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.ai-translate-tts-btn-small .ai-translate-tts-icon {
+  font-size: 14px;
+}
+
+/* 加载状态动画 */
+.ai-translate-tts-btn.loading .ai-translate-tts-icon {
+  animation: tts-loading 1s linear infinite;
+}
+
+@keyframes tts-loading {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 播放状态样式 */
+.ai-translate-tts-btn.playing {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.ai-translate-tts-btn.playing:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+}
+
+/* 播放中的波形动画 */
+.ai-translate-tts-btn.playing .ai-translate-tts-icon {
+  animation: tts-wave 0.8s ease-in-out infinite;
+}
+
+@keyframes tts-wave {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
