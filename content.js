@@ -19,6 +19,8 @@
   let currentAudio = null;  // 当前正在播放的音频实例
   let isSynthesizing = false;  // 是否正在合成语音
   let isPlaying = false;  // 是否正在播放
+  let audioContext = null;  // Web Audio API 上下文
+  let audioSource = null;  // 当前音频源节点
 
   /**
    * 初始化
@@ -787,117 +789,73 @@
       });
       
       if (response.success) {
-        // 创建音频对象并播放
-        currentAudio = new Audio();
-        
-        // 监听播放事件
-        currentAudio.onloadeddata = () => {
-          isSynthesizing = false;
-          isPlaying = true;
-          updateTTSButtonState(btn, 'playing');
-          currentAudio.play().catch(err => {
-            console.error('Audio play error:', err);
-            showTTSError(btn, '播放失败');
-          });
-        };
-        
-        currentAudio.onended = () => {
-          isPlaying = false;
-          updateTTSButtonState(btn, 'default');
-          currentAudio = null;
-        };
-        
-        currentAudio.onerror = (err) => {
-          console.error('Audio load error:', err);
-          console.error('Audio error details:', {
-            error: currentAudio.error,
-            networkState: currentAudio.networkState,
-            readyState: currentAudio.readyState,
-            src: currentAudio.src.substring(0, 100)
-          });
-          isSynthesizing = false;
-          isPlaying = false;
-          showTTSError(btn, '加载失败');
-        };
-        
-        // 加载音频数据
-        if (response.audioUrl) {
-          currentAudio.src = response.audioUrl;
-        } else if (response.audioData) {
-          // 如果是Base64数据
-          console.log('TTS返回音频数据，Base64长度:', response.audioData.length);
+        // 使用 Web Audio API 绕过 CSP 限制
+        try {
+          // 初始化 AudioContext
+          if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          }
           
-          // 检查Base64数据的前几个字符
-          const base64Preview = response.audioData.substring(0, 50);
-          console.log('Base64数据预览:', base64Preview);
+          // 如果有正在播放的音频，停止它
+          if (audioSource) {
+            try {
+              audioSource.stop();
+            } catch (e) {
+              // 忽略停止错误
+            }
+            audioSource = null;
+          }
           
-          // 尝试检测实际的音频格式
-          const detectedFormat = detectAudioFormat(response.audioData);
-          console.log('检测到的音频格式:', detectedFormat);
-          
-          // 使用检测到的格式，默认为mp3
-          const actualFormat = detectedFormat || 'mp3';
-          
-          try {
-            const audioBlob = base64ToBlob(response.audioData, actualFormat);
-            console.log('音频Blob创建成功，大小:', audioBlob.size, 'bytes, 类型:', audioBlob.type);
+          if (response.audioUrl) {
+            // 如果是 URL，使用 fetch 获取
+            const audioResponse = await fetch(response.audioUrl);
+            const arrayBuffer = await audioResponse.arrayBuffer();
+            playAudioBuffer(arrayBuffer, btn);
+          } else if (response.audioData) {
+            // 如果是 Base64 数据
+            console.log('TTS返回音频数据，Base64长度:', response.audioData.length);
             
-            // 验证Blob是否有效
-            if (audioBlob.size === 0) {
-              throw new Error('生成的Blob大小为0');
+            // 检测音频格式
+            const detectedFormat = detectAudioFormat(response.audioData);
+            console.log('检测到的音频格式:', detectedFormat);
+            
+            // 查看 Base64 数据的开头，帮助诊断
+            const base64Preview = response.audioData.substring(0, 50);
+            console.log('Base64 数据预览:', base64Preview);
+            
+            // 将 Base64 转为 ArrayBuffer
+            const binaryString = atob(response.audioData);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
             }
             
-            // 检查浏览器是否支持该音频格式
-            const canPlay = currentAudio.canPlayType(audioBlob.type);
-            console.log('浏览器支持该格式:', canPlay, '("probably" or "maybe" 表示支持)');
+            // 显示文件头的十六进制值
+            const headerHex = Array.from(bytes.slice(0, 16))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join(' ');
+            console.log('文件头十六进制:', headerHex);
             
-            const blobUrl = URL.createObjectURL(audioBlob);
-            console.log('Blob URL创建成功:', blobUrl);
+            console.log('音频数据大小:', bytes.length, 'bytes');
             
-            // 添加更多调试事件
-            currentAudio.addEventListener('loadstart', () => {
-              console.log('音频开始加载...');
-            }, { once: true });
-            
-            currentAudio.addEventListener('loadedmetadata', () => {
-              console.log('音频元数据已加载，时长:', currentAudio.duration);
-            }, { once: true });
-            
-            currentAudio.addEventListener('loadeddata', () => {
-              console.log('音频数据已加载');
-            }, { once: true });
-            
-            currentAudio.addEventListener('canplay', () => {
-              console.log('音频可以播放');
-            }, { once: true });
-            
-            // 设置音频源
-            currentAudio.src = blobUrl;
-            
-            // 尝试预加载
-            currentAudio.load();
-            console.log('开始预加载音频数据...');
-            
-            // 清理旧的Blob URL
-            currentAudio.addEventListener('ended', () => {
-              URL.revokeObjectURL(blobUrl);
-            }, { once: true });
-            
-            // 也在错误时清理
-            currentAudio.addEventListener('error', () => {
-              URL.revokeObjectURL(blobUrl);
-            }, { once: true });
-            
-          } catch (blobError) {
-            console.error('创建音频Blob失败:', blobError);
+            // 如果是 PCM 原始数据，需要先转换为 WAV
+            if (!detectedFormat || detectedFormat === 'pcm') {
+              console.log('检测为 PCM 数据，将转换为 WAV 格式');
+              const wavBuffer = convertPCMToWAV(bytes.buffer);
+              playAudioBuffer(wavBuffer, btn);
+            } else {
+              playAudioBuffer(bytes.buffer, btn);
+            }
+          } else {
+            console.error('TTS响应中没有音频数据');
             isSynthesizing = false;
-            showTTSError(btn, '音频格式错误');
+            showTTSError(btn, '无音频数据');
             return;
           }
-        } else {
-          console.error('TTS响应中没有音频数据');
+        } catch (error) {
+          console.error('Web Audio API 错误:', error);
           isSynthesizing = false;
-          showTTSError(btn, '无音频数据');
+          showTTSError(btn, '播放失败');
           return;
         }
       } else {
@@ -972,14 +930,68 @@
   }
   
   /**
+   * 使用 Web Audio API 播放音频缓冲区
+   * @param {ArrayBuffer} arrayBuffer - 音频数据
+   * @param {HTMLElement} btn - TTS按钮
+   */
+  async function playAudioBuffer(arrayBuffer, btn) {
+    try {
+      console.log('开始解码音频数据...');
+      
+      // 解码音频数据
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      console.log('音频解码成功，时长:', audioBuffer.duration, '秒');
+      
+      // 创建音频源节点
+      audioSource = audioContext.createBufferSource();
+      audioSource.buffer = audioBuffer;
+      audioSource.connect(audioContext.destination);
+      
+      // 监听播放结束
+      audioSource.onended = () => {
+        console.log('音频播放结束');
+        isPlaying = false;
+        isSynthesizing = false;
+        updateTTSButtonState(btn, 'default');
+        audioSource = null;
+      };
+      
+      // 开始播放
+      audioSource.start(0);
+      isPlaying = true;
+      isSynthesizing = false;
+      updateTTSButtonState(btn, 'playing');
+      console.log('开始播放音频');
+      
+    } catch (error) {
+      console.error('音频解码或播放错误:', error);
+      isSynthesizing = false;
+      isPlaying = false;
+      showTTSError(btn, '音频格式错误');
+    }
+  }
+  
+  /**
    * 停止音频播放
    */
   function stopAudio() {
+    // 停止 Web Audio API 播放
+    if (audioSource) {
+      try {
+        audioSource.stop();
+      } catch (e) {
+        // 忽略错误
+      }
+      audioSource = null;
+    }
+    
+    // 也处理传统的 Audio 元素（如果有）
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
       currentAudio = null;
     }
+    
     isPlaying = false;
   }
   
@@ -1092,6 +1104,55 @@
       console.error('PCM转换为WAV失败:', error);
       throw new Error('PCM转换失败: ' + error.message);
     }
+  }
+  
+  /**
+   * 将 PCM ArrayBuffer 转换为 WAV 格式
+   * @param {ArrayBuffer} pcmBuffer - PCM 音频数据
+   * @returns {ArrayBuffer} WAV 格式的音频数据
+   */
+  function convertPCMToWAV(pcmBuffer) {
+    const pcmData = new Uint8Array(pcmBuffer);
+    
+    // WAV 文件参数（默认，可能需要根据实际 API 返回调整）
+    const numChannels = 1; // 单声道
+    const sampleRate = 24000; // 采样率
+    const bitsPerSample = 16; // 每个采样的位数
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = pcmData.length;
+    const fileSize = 36 + dataSize;
+    
+    // 创建 WAV 文件头
+    const wavHeader = new ArrayBuffer(44);
+    const view = new DataView(wavHeader);
+    
+    // RIFF chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, fileSize, true);
+    writeString(view, 8, 'WAVE');
+    
+    // fmt sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // audio format (1 = PCM)
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    
+    // data sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+    
+    // 合并 header 和 PCM 数据
+    const wavData = new Uint8Array(44 + dataSize);
+    wavData.set(new Uint8Array(wavHeader), 0);
+    wavData.set(pcmData, 44);
+    
+    console.log('PCM 转换为 WAV 成功，文件大小:', wavData.length);
+    return wavData.buffer;
   }
   
   /**
