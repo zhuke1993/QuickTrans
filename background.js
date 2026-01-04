@@ -306,6 +306,108 @@ const TranslationService = {
  * - 支持长文本翻译时的实时反馈
  */
 chrome.runtime.onConnect.addListener((port) => {
+  // 词典查询流式连接
+  if (port.name === 'dictionary-stream') {
+    port.onMessage.addListener(async (msg) => {
+      if (msg.action === 'dictionary-lookup') {
+        const { word } = msg;
+        
+        try {
+          // 检查缓存
+          const cacheKey = `dict_${word.toLowerCase()}`;
+          const cached = await StorageUtils.getTranslationCache(cacheKey, 'dictionary');
+          if (cached) {
+            port.postMessage({
+              type: 'complete',
+              result: {
+                success: true,
+                definition: cached,
+                cached: true
+              }
+            });
+            return;
+          }
+
+          // 获取API配置
+          const apiConfig = await StorageUtils.getActiveApiConfig();
+          if (!apiConfig) {
+            port.postMessage({
+              type: 'complete',
+              result: {
+                success: false,
+                errorMessage: '未配置API，请先在设置页面添加API配置',
+                errorCode: 'NO_API_CONFIG'
+              }
+            });
+            return;
+          }
+
+          // 构建词典查询提示词
+          const systemPrompt = `你是一个专业的英文词典助手。请为用户提供的英文单词给出详细的词典释义。
+
+请按以下格式返回：
+1. 音标（使用国际音标，格式如 /ˈwɜːd/）
+2. 词性和释义（包含中文解释，如 n. 名词，每个词性分开列出）
+3. 常用例句（1-2个，并提供中文翻译）
+
+要求：
+- 简洁明了，不要赘述
+- 释义使用中文
+- 例句附带中文翻译
+- 如果是不常见的词，可以适当扩展说明`;
+
+          const userPrompt = `请查询单词：${word}`;
+
+          // 流式回调函数
+          const onChunk = (chunk, fullText) => {
+            port.postMessage({
+              type: 'chunk',
+              chunk: chunk,
+              fullText: fullText
+            });
+          };
+
+          // 执行查询
+          const result = await TranslationService.callLLMAPI(
+            apiConfig,
+            systemPrompt,
+            userPrompt,
+            onChunk
+          );
+
+          // 如果查询成功，缓存结果
+          if (result.success) {
+            await StorageUtils.saveTranslationCache(cacheKey, 'dictionary', result.translatedText);
+          }
+
+          // 发送完成消息
+          port.postMessage({
+            type: 'complete',
+            result: {
+              success: result.success,
+              definition: result.translatedText,
+              model: apiConfig.model,
+              errorMessage: result.errorMessage,
+              errorCode: result.errorCode
+            }
+          });
+
+        } catch (error) {
+          console.error('Dictionary lookup error:', error);
+          port.postMessage({
+            type: 'complete',
+            result: {
+              success: false,
+              errorMessage: error.message || '查询失败，请稍后重试',
+              errorCode: 'DICTIONARY_ERROR'
+            }
+          });
+        }
+      }
+    });
+  }
+  
+  // 翻译流式连接
   if (port.name === 'translation-stream') {
     port.onMessage.addListener(async (msg) => {
       if (msg.action === 'translate-stream') {

@@ -332,3 +332,69 @@
     max-width: calc(100vw - 32px);
   }
 }
+
+/* ===================== 词典模式样式 ===================== */
+
+/* 词典模式头部 */
+.ai-translate-dict-header {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.ai-translate-popup-dict-title {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 单词展示区 */
+.ai-translate-dict-word {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+  border-radius: 8px;
+  border-left: 4px solid #48bb78;
+}
+
+.ai-translate-dict-word-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2d3748;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ai-translate-dict-phonetic {
+  font-size: 14px;
+  color: #718096;
+  font-family: 'Lucida Sans Unicode', 'Arial Unicode MS', sans-serif;
+  display: none; /* 默认隐藏，有音标时显示 */
+}
+
+/* 词典结果区域 */
+.ai-translate-dict-result {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4a5568;
+}
+
+/* 词性标记 */
+.ai-translate-dict-pos {
+  display: inline-block;
+  background: #667eea;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 6px;
+  font-style: italic;
+}
+
+/* 序号 */
+.ai-translate-dict-num {
+  color: #667eea;
+  font-weight: 600;
+}

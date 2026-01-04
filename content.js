@@ -12,6 +12,7 @@
   let currentSelectedText = '';
   let debounceTimer = null;
   let userPreferences = null;
+  let isDictionaryMode = false;  // 是否为词典模式
 
   /**
    * 初始化
@@ -80,6 +81,8 @@
       }
 
       currentSelectedText = selectedText;
+      // 判断是否为单词（词典模式）
+      isDictionaryMode = isSingleWord(selectedText);
       showTranslateIcon(e);
     }, 200);
   }
@@ -151,39 +154,68 @@
     });
     const detectedLanguage = detectionResponse.language;
 
-    // 构建弹窗HTML
-    popup.innerHTML = `
-      <div class="ai-translate-popup-header">
-        <div class="ai-translate-popup-language">
-          <span class="ai-translate-popup-source-lang">${getLanguageName(detectedLanguage, languages)}</span>
-          <span class="ai-translate-popup-arrow">→</span>
-          <select class="ai-translate-popup-target-select" id="ai-translate-target-lang">
-            ${languages.map(lang => `
-              <option value="${lang.code}" ${lang.code === userPreferences.lastTargetLanguage ? 'selected' : ''}>
-                ${lang.name}
-              </option>
-            `).join('')}
-          </select>
+    // 构建弹窗HTML - 根据是否为词典模式显示不同内容
+    if (isDictionaryMode) {
+      // 词典模式
+      popup.innerHTML = `
+        <div class="ai-translate-popup-header ai-translate-dict-header">
+          <div class="ai-translate-popup-language">
+            <span class="ai-translate-popup-dict-title">📖 词典</span>
+          </div>
+          <button class="ai-translate-popup-close" id="ai-translate-close">×</button>
         </div>
-        <button class="ai-translate-popup-close" id="ai-translate-close">×</button>
-      </div>
-      <div class="ai-translate-popup-content">
-        <div class="ai-translate-popup-original">
-          <div class="ai-translate-popup-original-label">原文</div>
-          <div>${escapeHtml(currentSelectedText)}</div>
-        </div>
-        <div class="ai-translate-popup-result" id="ai-translate-result">
-          <div class="ai-translate-popup-loading">
-            <div class="ai-translate-popup-spinner"></div>
-            <span>正在翻译...</span>
+        <div class="ai-translate-popup-content">
+          <div class="ai-translate-dict-word">
+            <span class="ai-translate-dict-word-text">${escapeHtml(currentSelectedText)}</span>
+            <span class="ai-translate-dict-phonetic" id="ai-translate-phonetic"></span>
+          </div>
+          <div class="ai-translate-popup-result ai-translate-dict-result" id="ai-translate-result">
+            <div class="ai-translate-popup-loading">
+              <div class="ai-translate-popup-spinner"></div>
+              <span>正在查询...</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="ai-translate-popup-footer">
-        <button class="ai-translate-popup-copy-btn" id="ai-translate-copy" disabled>复制译文</button>
-        <div class="ai-translate-popup-info">AI翻译助手</div>
-      </div>
-    `;
+        <div class="ai-translate-popup-footer">
+          <button class="ai-translate-popup-copy-btn" id="ai-translate-copy" disabled>复制释义</button>
+          <div class="ai-translate-popup-info">AI词典助手</div>
+        </div>
+      `;
+    } else {
+      // 普通翻译模式
+      popup.innerHTML = `
+        <div class="ai-translate-popup-header">
+          <div class="ai-translate-popup-language">
+            <span class="ai-translate-popup-source-lang">${getLanguageName(detectedLanguage, languages)}</span>
+            <span class="ai-translate-popup-arrow">→</span>
+            <select class="ai-translate-popup-target-select" id="ai-translate-target-lang">
+              ${languages.map(lang => `
+                <option value="${lang.code}" ${lang.code === userPreferences.lastTargetLanguage ? 'selected' : ''}>
+                  ${lang.name}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <button class="ai-translate-popup-close" id="ai-translate-close">×</button>
+        </div>
+        <div class="ai-translate-popup-content">
+          <div class="ai-translate-popup-original">
+            <div class="ai-translate-popup-original-label">原文</div>
+            <div>${escapeHtml(currentSelectedText)}</div>
+          </div>
+          <div class="ai-translate-popup-result" id="ai-translate-result">
+            <div class="ai-translate-popup-loading">
+              <div class="ai-translate-popup-spinner"></div>
+              <span>正在翻译...</span>
+            </div>
+          </div>
+        </div>
+        <div class="ai-translate-popup-footer">
+          <button class="ai-translate-popup-copy-btn" id="ai-translate-copy" disabled>复制译文</button>
+          <div class="ai-translate-popup-info">AI翻译助手</div>
+        </div>
+      `;
+    }
 
     document.body.appendChild(popup);
     currentPopup = popup;
@@ -198,14 +230,19 @@
     const closeBtn = popup.querySelector('#ai-translate-close');
     closeBtn.addEventListener('click', closePopup);
 
-    const targetSelect = popup.querySelector('#ai-translate-target-lang');
-    targetSelect.addEventListener('change', handleTargetLanguageChange);
-
     const copyBtn = popup.querySelector('#ai-translate-copy');
     copyBtn.addEventListener('click', handleCopyTranslation);
 
-    // 开始翻译
-    performTranslation(detectedLanguage, userPreferences.lastTargetLanguage);
+    // 词典模式和翻译模式的不同处理
+    if (isDictionaryMode) {
+      // 词典模式：执行词典查询
+      performDictionaryLookup();
+    } else {
+      // 翻译模式：绑定语言切换事件并执行翻译
+      const targetSelect = popup.querySelector('#ai-translate-target-lang');
+      targetSelect.addEventListener('change', handleTargetLanguageChange);
+      performTranslation(detectedLanguage, userPreferences.lastTargetLanguage);
+    }
   }
 
   /**
@@ -255,6 +292,163 @@
     // 动态计算并设置弹窗的最大高度，确保底部按钮区域始终可见
     const availableHeight = viewportHeight - popupY - margin;
     popup.style.maxHeight = `${availableHeight}px`;
+  }
+
+  /**
+   * 执行词典查询 - 用于单词查询模式
+   */
+  async function performDictionaryLookup() {
+    const resultDiv = document.getElementById('ai-translate-result');
+    const phoneticSpan = document.getElementById('ai-translate-phonetic');
+    const copyBtn = document.getElementById('ai-translate-copy');
+
+    if (!resultDiv) return;
+
+    // 显示加载状态
+    resultDiv.innerHTML = `
+      <div class="ai-translate-popup-loading">
+        <div class="ai-translate-popup-spinner"></div>
+        <span>正在查询...</span>
+      </div>
+    `;
+    copyBtn.disabled = true;
+
+    try {
+      // 建立流式连接
+      const port = chrome.runtime.connect({ name: 'dictionary-stream' });
+      
+      let fullResult = '';
+      let isStreamStarted = false;
+
+      // 监听流式数据
+      port.onMessage.addListener((msg) => {
+        if (msg.type === 'chunk') {
+          // 第一次收到数据时，清除加载动画
+          if (!isStreamStarted) {
+            isStreamStarted = true;
+            resultDiv.innerHTML = '';
+          }
+          
+          // 实时更新结果
+          fullResult = msg.fullText;
+          resultDiv.innerHTML = formatDictionaryResult(fullResult);
+          
+          // 尝试提取音标
+          extractAndShowPhonetic(fullResult, phoneticSpan);
+          
+          // 每次更新后重新调整弹窗位置
+          if (currentPopup && currentIcon) {
+            const iconRect = currentIcon.getBoundingClientRect();
+            const iconX = iconRect.left + window.scrollX;
+            const iconY = iconRect.top + window.scrollY;
+            requestAnimationFrame(() => {
+              adjustPopupPosition(currentPopup, iconX, iconY);
+            });
+          }
+          
+        } else if (msg.type === 'complete') {
+          const response = msg.result;
+          
+          if (response.success) {
+            // 如果是缓存结果，直接显示
+            if (response.cached) {
+              resultDiv.innerHTML = formatDictionaryResult(response.definition);
+              extractAndShowPhonetic(response.definition, phoneticSpan);
+            }
+            
+            // 启用复制按钮
+            copyBtn.disabled = false;
+            copyBtn.dataset.translation = response.definition || fullResult;
+
+            // 更新底部信息栏显示模型信息
+            const infoDiv = document.querySelector('.ai-translate-popup-info');
+            if (infoDiv && response.model) {
+              infoDiv.innerHTML = `AI词典助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+            }
+
+            // 显示缓存提示
+            if (response.cached) {
+              resultDiv.innerHTML += '<div style="margin-top: 8px; font-size: 11px; color: #999;">(缓存结果)</div>';
+            }
+
+            // 查询完成后重新调整弹窗位置
+            if (currentPopup && currentIcon) {
+              const iconRect = currentIcon.getBoundingClientRect();
+              const iconX = iconRect.left + window.scrollX;
+              const iconY = iconRect.top + window.scrollY;
+              
+              requestAnimationFrame(() => {
+                adjustPopupPosition(currentPopup, iconX, iconY);
+              });
+            }
+            
+          } else {
+            // 显示错误信息
+            showError(response.errorMessage, response.errorCode);
+          }
+          
+          // 断开连接
+          port.disconnect();
+        }
+      });
+
+      // 发送词典查询请求
+      port.postMessage({
+        action: 'dictionary-lookup',
+        word: currentSelectedText
+      });
+
+    } catch (error) {
+      console.error('Dictionary lookup error:', error);
+      showError('查询失败，请稍后重试', 'UNKNOWN_ERROR');
+    }
+  }
+
+  /**
+   * 格式化词典结果为HTML
+   */
+  function formatDictionaryResult(text) {
+    if (!text) return '';
+    
+    // 将文本转换为HTML，处理换行和特殊格式
+    let html = escapeHtml(text)
+      .replace(/\n/g, '<br>')
+      // 突出显示词性标记（如 n. v. adj. 等）
+      .replace(/\b(n\.|v\.|adj\.|adv\.|prep\.|conj\.|pron\.|int\.|vt\.|vi\.|aux\.)/g, '<span class="ai-translate-dict-pos">$1</span>')
+      // 突出显示序号（如 1. 2. 3. 或 ① ② ③）
+      .replace(/(^|<br>)(\d+\.\s*)/g, '$1<span class="ai-translate-dict-num">$2</span>')
+      .replace(/([\u2460-\u2473])/g, '<span class="ai-translate-dict-num">$1</span>');
+    
+    return html;
+  }
+
+  /**
+   * 提取并显示音标
+   */
+  function extractAndShowPhonetic(text, phoneticSpan) {
+    if (!phoneticSpan || !text) return;
+    
+    // 尝试匹配音标格式：/.../ 或 [...] 或 UK: ... US: ...
+    const phoneticPatterns = [
+      /\/([ɐ-˿\w\s]+)\//,  // /fəˈnetɪk/
+      /\[([ɐ-˿\w\s]+)\]/,  // [fəˈnetɪk]
+      /UK:\s*\/([ɐ-˿\w\s]+)\/\s*US:\s*\/([ɐ-˿\w\s]+)\//,  // UK: /.../ US: /.../
+      /［([ɐ-˿\w\s]+)］/  // 全角方括号
+    ];
+    
+    for (const pattern of phoneticPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        if (match[2]) {
+          // UK/US 双音标
+          phoneticSpan.textContent = `UK /${match[1]}/ US /${match[2]}/`;
+        } else {
+          phoneticSpan.textContent = `/${match[1]}/`;
+        }
+        phoneticSpan.style.display = 'inline';
+        return;
+      }
+    }
   }
 
   /**
@@ -490,6 +684,31 @@
   function getLanguageName(code, languages) {
     const lang = languages.find(l => l.code === code);
     return lang ? lang.name : code;
+  }
+
+  /**
+   * 判断是否为单个单词
+   * 支持英文单词（包含连字符的复合词）
+   */
+  function isSingleWord(text) {
+    // 去除首尾空格
+    const trimmed = text.trim();
+    
+    // 空文本不是单词
+    if (!trimmed) return false;
+    
+    // 包含空格或换行，不是单个单词
+    if (/\s/.test(trimmed)) return false;
+    
+    // 英文单词：只包含字母、连字符、撇号（如 don't, self-driving）
+    const englishWordPattern = /^[a-zA-Z]+(['-][a-zA-Z]+)*$/;
+    
+    // 检查是否是英文单词
+    if (englishWordPattern.test(trimmed)) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
