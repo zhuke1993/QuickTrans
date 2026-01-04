@@ -37,10 +37,21 @@
     ttsConfigForm: document.getElementById('tts-config-form'),
     ttsConfigId: document.getElementById('tts-config-id'),
     ttsConfigName: document.getElementById('tts-config-name'),
+    ttsConfigProvider: document.getElementById('tts-config-provider'),
     ttsConfigEndpoint: document.getElementById('tts-config-endpoint'),
     ttsConfigApiKey: document.getElementById('tts-config-apikey'),
+    // Qwen特有字段
     ttsConfigModel: document.getElementById('tts-config-model'),
     ttsConfigVoice: document.getElementById('tts-config-voice'),
+    ttsQwenModelGroup: document.getElementById('tts-qwen-model-group'),
+    ttsQwenVoiceGroup: document.getElementById('tts-qwen-voice-group'),
+    // OpenAI特有字段
+    ttsOpenaiModel: document.getElementById('tts-openai-model'),
+    ttsOpenaiVoice: document.getElementById('tts-openai-voice'),
+    ttsOpenaiFormat: document.getElementById('tts-openai-format'),
+    ttsOpenaiModelGroup: document.getElementById('tts-openai-model-group'),
+    ttsOpenaiVoiceGroup: document.getElementById('tts-openai-voice-group'),
+    ttsOpenaiFormatGroup: document.getElementById('tts-openai-format-group'),
     toggleTtsApiKey: document.getElementById('toggle-tts-apikey'),
     ttsSaveBtn: document.getElementById('tts-save-btn'),
     ttsCancelBtn: document.getElementById('tts-cancel-btn'),
@@ -133,6 +144,9 @@
 
     // 测试连接
     elements.testBtn.addEventListener('click', handleTestConnection);
+
+    // TTS服务商选择变更
+    elements.ttsConfigProvider.addEventListener('change', handleTtsProviderChange);
 
     // 偏好设置变更
     elements.defaultTargetLang.addEventListener('change', handlePreferenceChange);
@@ -460,8 +474,38 @@
   function createTtsConfigCard(config) {
     const createdDate = new Date(config.createdAt).toLocaleDateString('zh-CN');
     const maskedApiKey = maskApiKey(config.apiKey);
-    const model = config.model || 'qwen3-tts-flash';
-    const voice = config.voice || 'Cherry';
+    const provider = config.provider || 'qwen';
+    const providerName = provider === 'qwen' ? '通义千问' : provider === 'openai' ? 'OpenAI' : provider;
+    
+    // 根据provider显示不同字段
+    let extraInfo = '';
+    if (provider === 'qwen') {
+      const model = config.model || 'qwen3-tts-flash';
+      const voice = config.voice || 'Cherry';
+      extraInfo = `
+        <div class="config-card-endpoint">
+          <strong>模型：</strong>${escapeHtml(model)}
+        </div>
+        <div class="config-card-endpoint">
+          <strong>音色：</strong>${escapeHtml(voice)}
+        </div>
+      `;
+    } else if (provider === 'openai') {
+      const model = config.openai_model || 'tts-1';
+      const voice = config.openai_voice || 'alloy';
+      const format = config.openai_format || 'mp3';
+      extraInfo = `
+        <div class="config-card-endpoint">
+          <strong>模型：</strong>${escapeHtml(model)}
+        </div>
+        <div class="config-card-endpoint">
+          <strong>音色：</strong>${escapeHtml(voice)}
+        </div>
+        <div class="config-card-endpoint">
+          <strong>格式：</strong>${escapeHtml(format)}
+        </div>
+      `;
+    }
 
     return `
       <div class="config-card ${config.isActive ? 'active' : ''}" data-id="${config.id}">
@@ -478,17 +522,15 @@
         </div>
         <div class="config-card-info">
           <div class="config-card-endpoint">
+            <strong>服务商：</strong>${escapeHtml(providerName)}
+          </div>
+          <div class="config-card-endpoint">
             <strong>端点：</strong>${escapeHtml(config.apiEndpoint)}
           </div>
           <div class="config-card-endpoint">
             <strong>密钥：</strong>${maskedApiKey}
           </div>
-          <div class="config-card-endpoint">
-            <strong>模型：</strong>${escapeHtml(model)}
-          </div>
-          <div class="config-card-endpoint">
-            <strong>音色：</strong>${escapeHtml(voice)}
-          </div>
+          ${extraInfo}
         </div>
         <div class="config-card-footer">
           <div class="config-card-meta">
@@ -549,6 +591,8 @@
     // 只有在添加新配置时才重置表单
     if (!editingTtsConfigId) {
       elements.ttsConfigForm.reset();
+      // 隐藏所有provider特定字段
+      hideAllTtsProviderFields();
     }
     elements.ttsConfigId.value = editingTtsConfigId || '';
   }
@@ -563,15 +607,63 @@
   }
 
   /**
-   * 填充TTS API表单（编辑时）
+   * 填充TTS API表单(编辑时)
    */
   function fillTtsFormWithConfig(config) {
     elements.ttsConfigId.value = config.id;
     elements.ttsConfigName.value = config.name;
+    elements.ttsConfigProvider.value = config.provider || 'qwen';
     elements.ttsConfigEndpoint.value = config.apiEndpoint;
     elements.ttsConfigApiKey.value = config.apiKey;
-    elements.ttsConfigModel.value = config.model || 'qwen3-tts-flash';
-    elements.ttsConfigVoice.value = config.voice || 'Cherry';
+      
+    // 根据provider显示对应字段
+    handleTtsProviderChange();
+      
+    // 填充provider特定字段
+    if (config.provider === 'openai') {
+      elements.ttsOpenaiModel.value = config.openai_model || 'tts-1';
+      elements.ttsOpenaiVoice.value = config.openai_voice || 'alloy';
+      elements.ttsOpenaiFormat.value = config.openai_format || 'mp3';
+    } else {
+      // 默认为qwen
+      elements.ttsConfigModel.value = config.model || 'qwen3-tts-flash';
+      elements.ttsConfigVoice.value = config.voice || 'Cherry';
+    }
+  }
+
+  /**
+   * 处理TTS服务商选择变更
+   */
+  function handleTtsProviderChange() {
+    const provider = elements.ttsConfigProvider.value;
+    
+    // 隐藏所有provider特定字段
+    hideAllTtsProviderFields();
+    
+    // 根据选择的provider显示对应字段
+    if (provider === 'qwen') {
+      elements.ttsQwenModelGroup.style.display = 'block';
+      elements.ttsQwenVoiceGroup.style.display = 'block';
+      // 更新提示文本
+      document.getElementById('tts-endpoint-hint').textContent = '通义千问API端点，如: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+    } else if (provider === 'openai') {
+      elements.ttsOpenaiModelGroup.style.display = 'block';
+      elements.ttsOpenaiVoiceGroup.style.display = 'block';
+      elements.ttsOpenaiFormatGroup.style.display = 'block';
+      // 更新提示文本
+      document.getElementById('tts-endpoint-hint').textContent = 'OpenAI兼容的TTS端点，如: https://api.openai.com/v1/audio/speech';
+    }
+  }
+
+  /**
+   * 隐藏所有TTS provider特定字段
+   */
+  function hideAllTtsProviderFields() {
+    elements.ttsQwenModelGroup.style.display = 'none';
+    elements.ttsQwenVoiceGroup.style.display = 'none';
+    elements.ttsOpenaiModelGroup.style.display = 'none';
+    elements.ttsOpenaiVoiceGroup.style.display = 'none';
+    elements.ttsOpenaiFormatGroup.style.display = 'none';
   }
 
   /**
@@ -580,16 +672,27 @@
   async function handleTtsFormSubmit(e) {
     e.preventDefault();
 
+    const provider = elements.ttsConfigProvider.value.trim();
+    
     const configData = {
       name: elements.ttsConfigName.value.trim(),
+      provider: provider,
       apiEndpoint: elements.ttsConfigEndpoint.value.trim(),
-      apiKey: elements.ttsConfigApiKey.value.trim(),
-      model: elements.ttsConfigModel.value.trim() || 'qwen3-tts-flash',
-      voice: elements.ttsConfigVoice.value.trim() || 'Cherry'
+      apiKey: elements.ttsConfigApiKey.value.trim()
     };
+    
+    // 根据provider添加特定字段
+    if (provider === 'qwen') {
+      configData.model = elements.ttsConfigModel.value.trim() || 'qwen3-tts-flash';
+      configData.voice = elements.ttsConfigVoice.value.trim() || 'Cherry';
+    } else if (provider === 'openai') {
+      configData.openai_model = elements.ttsOpenaiModel.value.trim() || 'tts-1';
+      configData.openai_voice = elements.ttsOpenaiVoice.value.trim() || 'alloy';
+      configData.openai_format = elements.ttsOpenaiFormat.value.trim() || 'mp3';
+    }
 
     // 验证
-    if (!configData.name || !configData.apiEndpoint || !configData.apiKey) {
+    if (!configData.name || !configData.provider || !configData.apiEndpoint || !configData.apiKey) {
       showToast('请填写所有必填字段', 'error');
       return;
     }

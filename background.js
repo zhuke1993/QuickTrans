@@ -372,9 +372,20 @@ const TTSService = {
         };
       }
       
-      // 调用通义千问TTS API
-      const result = await this.callQwenTTSAPI(ttsConfig, text);
-      return result;
+      // 根据provider路由到不同的实现
+      const provider = ttsConfig.provider || 'qwen';
+      
+      if (provider === 'qwen') {
+        return await this.callQwenTTSAPI(ttsConfig, text);
+      } else if (provider === 'openai') {
+        return await this.callOpenAITTSAPI(ttsConfig, text);
+      } else {
+        return {
+          success: false,
+          errorMessage: `不支持的TTS服务商: ${provider}`,
+          errorCode: 'UNSUPPORTED_PROVIDER'
+        };
+      }
       
     } catch (error) {
       console.error('TTS synthesis error:', error);
@@ -551,6 +562,109 @@ const TTSService = {
       }
       
       console.log('TTS音频数据合并完成，总长度:', audioBase64.length);
+      
+      return {
+        success: true,
+        audioData: audioBase64
+      };
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          errorMessage: '请求超时，请检查网络连接或稍后重试',
+          errorCode: 'TIMEOUT'
+        };
+      }
+      
+      return {
+        success: false,
+        errorMessage: error.message || '网络错误，请检查连接',
+        errorCode: 'NETWORK_ERROR'
+      };
+    }
+  },
+  
+  /**
+   * 调用OpenAI兼容的TTS API
+   * @param {Object} ttsConfig - TTS配置
+   * @param {string} text - 待转换的文本
+   * @returns {Promise<Object>} API响应
+   */
+  async callOpenAITTSAPI(ttsConfig, text) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    
+    try {
+      // 获取OpenAI TTS配置
+      const ttsModel = ttsConfig.openai_model || 'tts-1';
+      const ttsVoice = ttsConfig.openai_voice || 'alloy';
+      const responseFormat = ttsConfig.openai_format || 'mp3';
+      
+      // 构建OpenAI TTS请求端点
+      const ttsEndpoint = ttsConfig.apiEndpoint.replace(/\/+$/, '');
+      
+      const requestBody = {
+        model: ttsModel,
+        input: text,
+        voice: ttsVoice,
+        response_format: responseFormat
+      };
+      
+      const response = await fetch(ttsEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ttsConfig.apiKey}`
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // 处理不同的错误状态码
+        if (response.status === 401) {
+          return {
+            success: false,
+            errorMessage: 'API密钥无效，请检查配置',
+            errorCode: 'INVALID_API_KEY'
+          };
+        } else if (response.status === 429) {
+          return {
+            success: false,
+            errorMessage: 'API调用频率超限，请稍后重试',
+            errorCode: 'RATE_LIMIT'
+          };
+        }
+        
+        return {
+          success: false,
+          errorMessage: errorData.error?.message || `TTS API错误 (${response.status})`,
+          errorCode: 'TTS_API_ERROR'
+        };
+      }
+      
+      // OpenAI TTS API返回的是音频文件的二进制数据
+      const audioBlob = await response.blob();
+      
+      // 将Blob转换为Base64
+      const audioBase64 = await this.blobToBase64(audioBlob);
+      
+      if (!audioBase64) {
+        return {
+          success: false,
+          errorMessage: 'API返回数据格式错误，未找到音频数据',
+          errorCode: 'INVALID_RESPONSE'
+        };
+      }
+      
+      console.log('OpenAI TTS音频数据获取完成，长度:', audioBase64.length);
       
       return {
         success: true,

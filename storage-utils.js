@@ -152,11 +152,27 @@ const StorageUtils = {
     const configs = result.ttsConfigs || [];
     
     // 兼容性处理：为旧配置添加默认字段
-    return configs.map(config => ({
-      ...config,
-      model: config.model || 'qwen3-tts-flash',
-      voice: config.voice || 'Cherry'
-    }));
+    return configs.map(config => {
+      // 如果没有provider字段，默认设为qwen
+      if (!config.provider) {
+        config.provider = 'qwen';
+      }
+      
+      // 为qwen provider添加默认字段
+      if (config.provider === 'qwen') {
+        config.model = config.model || 'qwen3-tts-flash';
+        config.voice = config.voice || 'Cherry';
+      }
+      
+      // 为openai provider添加默认字段
+      if (config.provider === 'openai') {
+        config.openai_model = config.openai_model || 'tts-1';
+        config.openai_voice = config.openai_voice || 'alloy';
+        config.openai_format = config.openai_format || 'mp3';
+      }
+      
+      return config;
+    });
   },
 
   /**
@@ -182,14 +198,23 @@ const StorageUtils = {
     const newConfig = {
       id: this.generateId(),
       name: config.name,
+      provider: config.provider || 'qwen',
       apiEndpoint: config.apiEndpoint,
       apiKey: config.apiKey,
-      model: config.model || 'qwen3-tts-flash',
-      voice: config.voice || 'Cherry',
       isActive: isFirstConfig || config.isActive || false,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
+    
+    // 根据provider添加特定字段
+    if (config.provider === 'qwen') {
+      newConfig.model = config.model || 'qwen3-tts-flash';
+      newConfig.voice = config.voice || 'Cherry';
+    } else if (config.provider === 'openai') {
+      newConfig.openai_model = config.openai_model || 'tts-1';
+      newConfig.openai_voice = config.openai_voice || 'alloy';
+      newConfig.openai_format = config.openai_format || 'mp3';
+    }
 
     // 如果新配置设为激活，需要将其他配置设为非激活
     if (newConfig.isActive) {
