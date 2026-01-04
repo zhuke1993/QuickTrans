@@ -14,6 +14,7 @@
   let debounceTimer = null;
   let userPreferences = null;
   let isDictionaryMode = false;  // 是否为词典模式
+  let lastMousePosition = { x: 0, y: 0 };  // 保存鼠标位置用于右键菜单翻译
   
   // 音频播放状态
   let currentAudio = null;  // 当前正在播放的音频实例
@@ -31,6 +32,7 @@
     userPreferences = result.userPreferences || {
       lastTargetLanguage: 'zh',
       autoShowPopup: true,
+      displayMode: 'auto',
       popupPosition: 'near',
       maxTextLength: 5000
     };
@@ -39,10 +41,25 @@
     if (userPreferences.maxTextLength === undefined) {
       userPreferences.maxTextLength = 5000;
     }
+    // 兼容旧的 autoShowPopup 配置
+    if (userPreferences.displayMode === undefined) {
+      userPreferences.displayMode = userPreferences.autoShowPopup ? 'auto' : 'icon';
+    }
 
     // 监听文本选择事件
     document.addEventListener('mouseup', handleTextSelection);
     document.addEventListener('keyup', handleTextSelection);
+    
+    // 记录鼠标位置（用于右键菜单翻译时定位弹窗）
+    document.addEventListener('mousedown', (e) => {
+      lastMousePosition = { x: e.clientX + window.scrollX, y: e.clientY + window.scrollY };
+      
+      // 点击其他区域关闭弹窗
+      if (currentPopup && !currentPopup.contains(e.target) && 
+          (!currentIcon || !currentIcon.contains(e.target))) {
+        closePopup();
+      }
+    });
 
     // 监听ESC键关闭弹窗
     document.addEventListener('keydown', (e) => {
@@ -50,22 +67,59 @@
         closePopup();
       }
     });
-
-    // 点击其他区域关闭弹窗
-    document.addEventListener('mousedown', (e) => {
-      if (currentPopup && !currentPopup.contains(e.target) && 
-          (!currentIcon || !currentIcon.contains(e.target))) {
-        closePopup();
+    
+    // 监听来自 background 的消息（右键菜单翻译）
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'translateFromContextMenu') {
+        handleContextMenuTranslate(request.text);
+        sendResponse({ success: true });
       }
+      return false;
     });
 
     console.log('AI翻译助手已加载');
   }
 
   /**
+   * 处理右键菜单翻译请求
+   */
+  async function handleContextMenuTranslate(text) {
+    if (!text || text.length < 2) return;
+    
+    // 设置当前选中文本
+    currentSelectedText = text.trim();
+    
+    // 判断是否为单词模式
+    isDictionaryMode = isSingleWord(currentSelectedText);
+    
+    // 尝试获取上下文（如果是词典模式）
+    if (isDictionaryMode) {
+      currentContext = getWordContext();
+    } else {
+      currentContext = '';
+    }
+    
+    // 关闭已存在的弹窗
+    closePopup();
+    
+    // 使用保存的鼠标位置显示翻译弹窗
+    showTranslatePopup(lastMousePosition.x, lastMousePosition.y);
+  }
+
+  /**
    * 处理文本选择事件
    */
   function handleTextSelection(e) {
+    // 右键菜单模式下不处理划词事件
+    if (userPreferences.displayMode === 'contextMenu') {
+      // 移除之前的图标
+      if (currentIcon) {
+        currentIcon.remove();
+        currentIcon = null;
+      }
+      return;
+    }
+
     // 防抖处理
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
@@ -133,8 +187,8 @@
     document.body.appendChild(icon);
     currentIcon = icon;
 
-    // 如果设置了自动显示弹窗
-    if (userPreferences.autoShowPopup) {
+    // 如果设置了自动显示弹窗（displayMode 为 'auto'）
+    if (userPreferences.displayMode === 'auto') {
       setTimeout(() => {
         if (currentIcon === icon) {
           showTranslatePopup(iconX, iconY);

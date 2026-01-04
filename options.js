@@ -57,7 +57,7 @@
     ttsCancelBtn: document.getElementById('tts-cancel-btn'),
     // 用户偏好元素
     defaultTargetLang: document.getElementById('default-target-lang'),
-    autoShowPopup: document.getElementById('auto-show-popup'),
+    displayMode: document.getElementById('display-mode'),
     maxTextLength: document.getElementById('max-text-length'),
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toast-message'),
@@ -150,7 +150,7 @@
 
     // 偏好设置变更
     elements.defaultTargetLang.addEventListener('change', handlePreferenceChange);
-    elements.autoShowPopup.addEventListener('change', handlePreferenceChange);
+    elements.displayMode.addEventListener('change', handlePreferenceChange);
     elements.maxTextLength.addEventListener('change', handlePreferenceChange);
     elements.maxTextLength.addEventListener('blur', handlePreferenceChange);
 
@@ -736,7 +736,15 @@
   async function loadPreferences() {
     const prefs = await StorageUtils.getUserPreferences();
     elements.defaultTargetLang.value = prefs.lastTargetLanguage;
-    elements.autoShowPopup.checked = prefs.autoShowPopup;
+    // 兼容旧配置：如果存在 autoShowPopup 但没有 displayMode，进行迁移
+    if (prefs.displayMode) {
+      elements.displayMode.value = prefs.displayMode;
+    } else if (prefs.autoShowPopup !== undefined) {
+      // 旧配置迁移
+      elements.displayMode.value = prefs.autoShowPopup ? 'auto' : 'icon';
+    } else {
+      elements.displayMode.value = 'auto';
+    }
     elements.maxTextLength.value = prefs.maxTextLength || 5000;
   }
 
@@ -766,7 +774,9 @@
 
     const prefs = {
       lastTargetLanguage: elements.defaultTargetLang.value,
-      autoShowPopup: elements.autoShowPopup.checked,
+      displayMode: elements.displayMode.value,
+      // 保持向后兼容：根据 displayMode 设置 autoShowPopup
+      autoShowPopup: elements.displayMode.value === 'auto',
       maxTextLength: maxTextLength
     };
 

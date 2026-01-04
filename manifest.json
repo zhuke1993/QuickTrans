@@ -5,7 +5,8 @@
   "description": "基于大语言模型的快速划词翻译插件，支持多语言自动识别和多API配置",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "contextMenus"
   ],
   "host_permissions": [
     "http://*/*",

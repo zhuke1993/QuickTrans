@@ -365,13 +365,14 @@
 
           <div class="preference-item">
             <div class="preference-info">
-              <div class="preference-label">自动显示翻译弹窗</div>
-              <div class="preference-hint">选中文本后自动显示翻译结果，无需点击图标</div>
+              <div class="preference-label">划词显示模式</div>
+              <div class="preference-hint">选择划词后如何触发翻译</div>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="auto-show-popup">
-              <span class="toggle-slider"></span>
-            </label>
+            <select id="display-mode" class="preference-select">
+              <option value="auto">自动弹窗 - 选中文本后自动显示翻译</option>
+              <option value="icon">图标模式 - 点击图标后显示翻译</option>
+              <option value="contextMenu">右键菜单 - 通过右键菜单触发翻译</option>
+            </select>
           </div>
 
           <div class="preference-item">

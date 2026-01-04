@@ -1032,9 +1032,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
+ * 创建右键菜单
+ */
+function createContextMenus() {
+  // 先清除旧的菜单
+  chrome.contextMenus.removeAll(() => {
+    // 创建翻译菜单项
+    chrome.contextMenus.create({
+      id: 'quicktrans-translate',
+      title: '🌐 翻译选中文本',
+      contexts: ['selection']
+    });
+    
+    console.log('右键菜单已创建');
+  });
+}
+
+/**
+ * 右键菜单点击事件处理
+ */
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === 'quicktrans-translate' && info.selectionText) {
+    try {
+      // 向 content script 发送翻译请求
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'translateFromContextMenu',
+        text: info.selectionText
+      });
+    } catch (error) {
+      console.error('发送翻译请求失败:', error);
+    }
+  }
+});
+
+/**
  * 插件安装或更新时的初始化
  */
 chrome.runtime.onInstalled.addListener(async (details) => {
+  // 创建右键菜单
+  createContextMenus();
+  
   if (details.reason === 'install') {
     console.log('AI翻译助手已安装');
     
@@ -1042,6 +1079,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await StorageUtils.saveUserPreferences({
       lastTargetLanguage: 'zh',
       autoShowPopup: true,
+      displayMode: 'auto',
       popupPosition: 'near'
     });
 
