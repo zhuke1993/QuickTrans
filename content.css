@@ -1,0 +1,332 @@
+/**
+ * 内容脚本样式
+ * 翻译弹窗和图标的样式定义
+ */
+
+/* 翻译触发图标 */
+.ai-translate-icon {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: scale(0.8);
+  animation: fadeInScale 0.2s ease forwards;
+}
+
+.ai-translate-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.ai-translate-icon::after {
+  content: '译';
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+}
+
+@keyframes fadeInScale {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 翻译弹窗容器 */
+.ai-translate-popup {
+  position: fixed;
+  min-width: 320px;
+  max-width: 480px;
+  max-height: calc(100vh - 40px); /* 确保不超出视口 */
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: slideIn 0.3s ease forwards;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 弹窗头部 */
+.ai-translate-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  flex-shrink: 0; /* 防止header被压缩 */
+}
+
+.ai-translate-popup-language {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  font-size: 13px;
+}
+
+.ai-translate-popup-source-lang {
+  font-weight: 500;
+}
+
+.ai-translate-popup-arrow {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.ai-translate-popup-target-select {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.ai-translate-popup-target-select:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.ai-translate-popup-target-select option {
+  background: white;
+  color: #333;
+}
+
+.ai-translate-popup-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+  margin-left: 8px;
+}
+
+.ai-translate-popup-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 弹窗内容区 */
+.ai-translate-popup-content {
+  padding: 16px;
+  max-height: calc(100vh - 200px); /* 为header和footer留出空间 */
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0; /* 允许flex收缩 */
+}
+
+/* 原文区域 */
+.ai-translate-popup-original {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.ai-translate-popup-original-label {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 翻译结果区域 */
+.ai-translate-popup-result {
+  font-size: 15px;
+  color: #333;
+  line-height: 1.8;
+  min-height: 60px;
+}
+
+/* 加载状态 */
+.ai-translate-popup-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: #999;
+}
+
+.ai-translate-popup-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 错误状态 */
+.ai-translate-popup-error {
+  padding: 16px;
+  background: #fff5f5;
+  color: #e53e3e;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ai-translate-popup-error-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.ai-translate-popup-error-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.ai-translate-popup-error-btn {
+  padding: 6px 12px;
+  background: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ai-translate-popup-error-btn:hover {
+  background: #c53030;
+}
+
+.ai-translate-popup-error-btn.secondary {
+  background: white;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+}
+
+.ai-translate-popup-error-btn.secondary:hover {
+  background: #fff5f5;
+}
+
+/* 底部操作栏 */
+.ai-translate-popup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  background: #fafafa;
+  flex-shrink: 0; /* 防止footer被压缩 */
+}
+
+.ai-translate-popup-copy-btn {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-translate-popup-copy-btn:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.ai-translate-popup-copy-btn:active {
+  transform: translateY(0);
+}
+
+.ai-translate-popup-copy-btn.copied {
+  background: #48bb78;
+}
+
+.ai-translate-popup-copy-btn.copied::before {
+  content: '✓ ';
+}
+
+.ai-translate-popup-info {
+  font-size: 11px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* 滚动条样式 */
+.ai-translate-popup-content::-webkit-scrollbar,
+.ai-translate-popup-original::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-translate-popup-content::-webkit-scrollbar-track,
+.ai-translate-popup-original::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.ai-translate-popup-content::-webkit-scrollbar-thumb,
+.ai-translate-popup-original::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.ai-translate-popup-content::-webkit-scrollbar-thumb:hover,
+.ai-translate-popup-original::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .ai-translate-popup {
+    min-width: 280px;
+    max-width: calc(100vw - 32px);
+  }
+}

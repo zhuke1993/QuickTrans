@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickTrans - 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 页面头部 -->
+    <header class="header">
+      <div class="header-content">
+        <div class="header-left">
+          <img src="icons/icon48.png" alt="Logo" class="header-logo">
+          <div>
+            <h1 class="header-title">QuickTrans</h1>
+            <p class="header-subtitle">基于大语言模型的快速划词翻译插件</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <span class="version">v1.0.0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- 说明区域 -->
+      <section class="intro-section">
+        <div class="intro-card">
+          <h2 class="section-title">快速开始</h2>
+          <p class="intro-text">
+            欢迎使用AI翻译助手！为了开始使用，请先配置至少一个API。
+            本插件支持所有兼容OpenAI协议的API服务。
+          </p>
+          <div class="intro-steps">
+            <div class="step">
+              <span class="step-number">1</span>
+              <span class="step-text">点击下方"添加新配置"按钮</span>
+            </div>
+            <div class="step">
+              <span class="step-number">2</span>
+              <span class="step-text">填写API端点地址和密钥</span>
+            </div>
+            <div class="step">
+              <span class="step-number">3</span>
+              <span class="step-text">保存并测试连接</span>
+            </div>
+            <div class="step">
+              <span class="step-number">4</span>
+              <span class="step-text">在任意网页选中文本即可翻译</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- API配置列表 -->
+      <section class="config-section">
+        <div class="section-header">
+          <h2 class="section-title">API配置管理</h2>
+          <button class="btn btn-primary" id="add-config-btn">
+            <span class="btn-icon">+</span>
+            添加新配置
+          </button>
+        </div>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          <p class="empty-text">还没有配置任何API</p>
+          <p class="empty-hint">点击"添加新配置"按钮开始设置</p>
+        </div>
+
+        <!-- 配置列表 -->
+        <div class="config-list" id="config-list">
+          <!-- 配置卡片将动态插入这里 -->
+        </div>
+      </section>
+
+      <!-- 配置表单（模态框） -->
+      <div class="modal" id="config-modal">
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title" id="modal-title">添加API配置</h3>
+            <button class="modal-close" id="modal-close">×</button>
+          </div>
+          <div class="modal-body">
+            <form id="config-form">
+              <div class="form-group">
+                <label for="config-name" class="form-label">配置名称 <span class="required">*</span></label>
+                <input 
+                  type="text" 
+                  id="config-name" 
+                  class="form-input" 
+                  placeholder="例如：OpenAI GPT-3.5"
+                  required
+                >
+                <span class="form-hint">为这个API配置起一个容易识别的名称</span>
+              </div>
+
+              <div class="form-group">
+                <label for="config-endpoint" class="form-label">API端点地址 <span class="required">*</span></label>
+                <input 
+                  type="url" 
+                  id="config-endpoint" 
+                  class="form-input" 
+                  placeholder="https://api.openai.com/v1/chat/completions"
+                  required
+                >
+                <span class="form-hint">支持OpenAI兼容协议的API地址</span>
+              </div>
+
+              <div class="form-group">
+                <label for="config-apikey" class="form-label">API密钥 <span class="required">*</span></label>
+                <div class="input-group">
+                  <input 
+                    type="password" 
+                    id="config-apikey" 
+                    class="form-input" 
+                    placeholder="sk-..."
+                    required
+                  >
+                  <button type="button" class="input-toggle" id="toggle-apikey">
+                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </button>
+                </div>
+                <span class="form-hint">API密钥仅存储在本地浏览器中</span>
+              </div>
+
+              <div class="form-group">
+                <label for="config-model" class="form-label">模型名称 <span class="required">*</span></label>
+                <input 
+                  type="text" 
+                  id="config-model" 
+                  class="form-input" 
+                  placeholder="例如：gpt-4o-mini, gpt-4, claude-3-5-sonnet"
+                  required
+                  value=""
+                >
+                <span class="form-hint">指定要使用的AI模型，常见模型：gpt-4o-mini、gpt-4、gpt-3.5-turbo、claude-3-5-sonnet</span>
+              </div>
+
+              <input type="hidden" id="config-id">
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+            <button type="button" class="btn btn-test" id="test-btn">测试连接</button>
+            <button type="submit" class="btn btn-primary" id="save-btn" form="config-form">保存配置</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 用户偏好设置 -->
+      <section class="preferences-section">
+        <h2 class="section-title">偏好设置</h2>
+        <div class="preferences-card">
+          <div class="preference-item">
+            <div class="preference-info">
+              <div class="preference-label">默认目标语言</div>
+              <div class="preference-hint">划词翻译时的默认目标语言</div>
+            </div>
+            <select id="default-target-lang" class="preference-select">
+              <!-- 语言选项将动态插入 -->
+            </select>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-info">
+              <div class="preference-label">自动显示翻译弹窗</div>
+              <div class="preference-hint">选中文本后自动显示翻译结果，无需点击图标</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="auto-show-popup">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-info">
+              <div class="preference-label">文字长度限制</div>
+              <div class="preference-hint">选中文本超过此长度时将不显示翻译选项（字符数）</div>
+            </div>
+            <input type="number" id="max-text-length" class="preference-input" min="100" max="50000" step="100" value="5000">
+          </div>
+        </div>
+      </section>
+
+      <!-- 缓存管理 -->
+      <section class="preferences-section">
+        <h2 class="section-title">缓存管理</h2>
+        <div class="preferences-card">
+          <div class="cache-stats">
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">缓存数量</div>
+              <div class="cache-stat-value" id="cache-count">-</div>
+            </div>
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">占用空间</div>
+              <div class="cache-stat-value" id="cache-size">-</div>
+            </div>
+            <div class="cache-stat-item">
+              <div class="cache-stat-label">存储类型</div>
+              <div class="cache-stat-value" style="font-size: 14px;">Session</div>
+            </div>
+          </div>
+          <div class="cache-actions">
+            <button class="btn btn-secondary" id="refresh-cache-btn">刷新统计</button>
+            <button class="btn btn-danger" id="clear-all-cache-btn">清空所有缓存</button>
+          </div>
+          <div class="cache-info">
+            <p class="cache-info-text" id="cache-storage-note">• 浏览器关闭后自动清空</p>
+            <p class="cache-info-text">• 由 Chrome 自动管理空间和过期，无需手动维护</p>
+            <p class="cache-info-text">• 相同内容的翻译结果会被缓存，加快响应速度</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+      <p>© 2025 AI翻译助手 | 数据仅存储在本地，保护您的隐私</p>
+    </footer>
+  </div>
+
+  <!-- 提示消息 -->
+  <div class="toast" id="toast">
+    <span class="toast-icon"></span>
+    <span class="toast-message" id="toast-message"></span>
+  </div>
+
+  <script src="storage-utils.js"></script>
+  <script src="language-detector.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

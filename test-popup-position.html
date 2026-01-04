@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试翻译弹窗位置</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .test-section {
+      margin: 50px 0;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+    
+    .test-section h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    
+    .test-text {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      cursor: text;
+      user-select: text;
+    }
+    
+    .spacer {
+      height: 1000px;
+    }
+    
+    .bottom-section {
+      margin-bottom: 100px;
+    }
+    
+    .instructions {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      border-left: 4px solid #2196f3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="instructions">
+      <h3>测试说明</h3>
+      <p>请在各个位置选择文字来测试翻译弹窗的显示位置：</p>
+      <ul>
+        <li>页面顶部区域 - 测试弹窗是否会显示在选中文本下方</li>
+        <li>页面中部区域 - 测试正常情况下的弹窗显示</li>
+        <li><strong>大段文本测试</strong> - 测试翻译大段文本时弹窗是否会超出视口</li>
+        <li>页面底部区域 - <strong>重点测试</strong>弹窗是否会被隐藏在页面底部</li>
+        <li>靠近屏幕右侧 - 测试弹窗是否会超出屏幕</li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h2>顶部测试区域</h2>
+      <div class="test-text">
+        This is a test text at the top of the page. Select this text to see if the popup appears correctly below the selection. 这是页面顶部的测试文本，选择这段文字来查看弹窗是否正确显示。
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="test-section">
+      <h2>中部测试区域</h2>
+      <div class="test-text">
+        This is a test text in the middle of the page. The popup should appear normally here without any positioning issues. 这是页面中部的测试文本，弹窗应该正常显示而不会有任何位置问题。
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="test-section">
+      <h2>大段文本测试区域（关键测试）</h2>
+      <div class="test-text">
+        <strong>选择下面这段长文本进行测试：</strong><br><br>
+        Artificial Intelligence (AI) has revolutionized the way we live, work, and interact with technology. From voice assistants like Siri and Alexa to recommendation systems on Netflix and Amazon, AI is everywhere. Machine learning, a subset of AI, enables computers to learn from data without being explicitly programmed. Deep learning, which uses neural networks with multiple layers, has achieved remarkable success in image recognition, natural language processing, and speech recognition. The transformer architecture, introduced in 2017, has become the foundation for large language models like GPT and BERT. These models can understand context, generate human-like text, and perform various language tasks with impressive accuracy. However, AI also raises important ethical concerns about privacy, bias, job displacement, and the potential misuse of technology. As we continue to advance AI capabilities, it's crucial to develop responsible AI practices and ensure that these powerful tools benefit humanity as a whole. The future of AI holds immense promise, but it also requires careful consideration of its societal impact.
+        <br><br>
+        人工智能（AI）彻底改变了我们的生活、工作和与技术互动的方式。从Siri和Alexa等语音助手到Netflix和Amazon上的推荐系统，AI无处不在。机器学习是AI的一个子集，它使计算机能够从数据中学习而无需明确编程。深度学习使用具有多层的神经网络，在图像识别、自然语言处理和语音识别方面取得了显著成功。2017年引入的Transformer架构已成为GPT和BERT等大型语言模型的基础。这些模型可以理解上下文、生成类人文本并以令人印象深刻的准确性执行各种语言任务。然而，AI也引发了关于隐私、偏见、工作岗位流失和技术潜在滥用的重要伦理问题。随着我们继续推进AI能力，开发负责任的AI实践并确保这些强大的工具造福全人类至关重要。AI的未来充满巨大希望，但也需要仔细考虑其社会影响。
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="test-section bottom-section">
+      <h2>底部测试区域（关键测试）</h2>
+      <div class="test-text">
+        This is the critical test at the bottom of the page. Previously, the popup might be hidden below the viewport. Now it should appear above the selection or within the visible viewport. 这是页面底部的关键测试。之前弹窗可能会被隐藏在视口下方，现在应该显示在选中文本上方或视口可见范围内。
+      </div>
+      <div class="test-text">
+        Another bottom text. When you select this text, make sure you can see the entire popup without scrolling. 另一段底部文本。选择这段文字时，确保可以看到完整的弹窗而无需滚动页面。
+      </div>
+      <div class="test-text" style="margin-bottom: 50px;">
+        Final test text at the very bottom. This is the most critical test case. 最底部的最终测试文本，这是最关键的测试用例。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 添加一些视觉反馈
+    document.querySelectorAll('.test-text').forEach(element => {
+      element.addEventListener('mouseenter', function() {
+        this.style.background = '#f0f0f0';
+      });
+      element.addEventListener('mouseleave', function() {
+        this.style.background = 'white';
+      });
+    });
+
+    // 提示用户滚动到底部测试
+    setTimeout(() => {
+      console.log('提示：请滚动到页面底部进行关键测试');
+    }, 1000);
+  </script>
+</body>
+</html>
