@@ -146,6 +146,22 @@
                 <span class="form-hint">指定要使用的AI模型，常见模型：gpt-4o-mini、gpt-4、gpt-3.5-turbo、claude-3-5-sonnet</span>
               </div>
 
+              <div class="form-group">
+                <label for="config-temperature" class="form-label">Temperature <span class="required">*</span></label>
+                <input 
+                  type="number" 
+                  id="config-temperature" 
+                  class="form-input" 
+                  placeholder="0.3"
+                  required
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value="0.3"
+                >
+                <span class="form-hint">控制翻译结果的随机性，范围 0-2，较低的值（如 0.3）更准确一致，较高的值（如 1.0）更多样化</span>
+              </div>
+
               <input type="hidden" id="config-id">
             </form>
           </div>

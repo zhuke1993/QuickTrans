@@ -178,6 +178,7 @@ const TranslationService = {
     try {
       // 使用配置中的模型，如果没有配置则使用默认值
       const model = apiConfig.model;
+      const temperature = apiConfig.temperature !== undefined ? apiConfig.temperature : 0.3;
       const useStream = !!onChunk; // 如果提供了回调函数，则启用流式
       
       const requestBody = {
@@ -186,7 +187,7 @@ const TranslationService = {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.1,
+        temperature: temperature,
         max_tokens: 10000,
         stream: useStream // 启用流式输出
       };

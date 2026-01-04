@@ -12,10 +12,11 @@ const StorageUtils = {
     const result = await chrome.storage.local.get('apiConfigs');
     const configs = result.apiConfigs || [];
     
-    // 兼容性处理：为旧配置添加默认 model 字段
+    // 兼容性处理：为旧配置添加默认 model 和 temperature 字段
     return configs.map(config => ({
       ...config,
-      model: config.model
+      model: config.model,
+      temperature: config.temperature !== undefined ? config.temperature : 0.3
     }));
   },
 
@@ -45,6 +46,7 @@ const StorageUtils = {
       apiEndpoint: config.apiEndpoint,
       apiKey: config.apiKey,
       model: config.model,
+      temperature: config.temperature !== undefined ? config.temperature : 0.3,
       isActive: isFirstConfig || config.isActive || false,
       createdAt: Date.now(),
       updatedAt: Date.now()

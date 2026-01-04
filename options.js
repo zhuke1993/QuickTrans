@@ -21,6 +21,7 @@
     configEndpoint: document.getElementById('config-endpoint'),
     configApiKey: document.getElementById('config-apikey'),
     configModel: document.getElementById('config-model'),
+    configTemperature: document.getElementById('config-temperature'),
     toggleApiKey: document.getElementById('toggle-apikey'),
     testBtn: document.getElementById('test-btn'),
     saveBtn: document.getElementById('save-btn'),
@@ -148,6 +149,7 @@
     const createdDate = new Date(config.createdAt).toLocaleDateString('zh-CN');
     const maskedApiKey = maskApiKey(config.apiKey);
     const modelName = config.model;
+    const temperature = config.temperature !== undefined ? config.temperature : 0.3;
 
     return `
       <div class="config-card ${config.isActive ? 'active' : ''}" data-id="${config.id}">
@@ -171,6 +173,9 @@
           </div>
           <div class="config-card-endpoint">
             <strong>模型：</strong>${escapeHtml(modelName)}
+          </div>
+          <div class="config-card-endpoint">
+            <strong>Temperature：</strong>${temperature}
           </div>
         </div>
         <div class="config-card-footer">
@@ -254,6 +259,7 @@
     elements.configEndpoint.value = config.apiEndpoint;
     elements.configApiKey.value = config.apiKey;
     elements.configModel.value = config.model;
+    elements.configTemperature.value = config.temperature !== undefined ? config.temperature : 0.3;
   }
 
   /**
@@ -278,12 +284,19 @@
       name: elements.configName.value.trim(),
       apiEndpoint: elements.configEndpoint.value.trim(),
       apiKey: elements.configApiKey.value.trim(),
-      model: elements.configModel.value.trim()
+      model: elements.configModel.value.trim(),
+      temperature: parseFloat(elements.configTemperature.value)
     };
 
     // 验证
     if (!configData.name || !configData.apiEndpoint || !configData.apiKey || !configData.model) {
       showToast('请填写所有必填字段', 'error');
+      return;
+    }
+
+    // 验证temperature范围
+    if (isNaN(configData.temperature) || configData.temperature < 0 || configData.temperature > 2) {
+      showToast('Temperature必须在 0-2 之间', 'error');
       return;
     }
 
@@ -328,11 +341,18 @@
       name: elements.configName.value.trim(),
       apiEndpoint: elements.configEndpoint.value.trim(),
       apiKey: elements.configApiKey.value.trim(),
-      model: elements.configModel.value.trim()
+      model: elements.configModel.value.trim(),
+      temperature: parseFloat(elements.configTemperature.value)
     };
 
     if (!configData.apiEndpoint || !configData.apiKey || !configData.model) {
       showToast('请先填写API端点、密钥和模型名称', 'warning');
+      return;
+    }
+
+    // 验证temperature范围
+    if (isNaN(configData.temperature) || configData.temperature < 0 || configData.temperature > 2) {
+      showToast('Temperature必须在 0-2 之间', 'error');
       return;
     }
 
