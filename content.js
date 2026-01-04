@@ -60,6 +60,11 @@
         closePopup();
       }
     });
+    
+    // 在右键菜单事件中也记录鼠标位置（针对PDF等特殊页面，mousedown可能不触发）
+    document.addEventListener('contextmenu', (e) => {
+      lastMousePosition = { x: e.clientX + window.scrollX, y: e.clientY + window.scrollY };
+    });
 
     // 监听ESC键关闭弹窗
     document.addEventListener('keydown', (e) => {
@@ -102,8 +107,19 @@
     // 关闭已存在的弹窗
     closePopup();
     
-    // 使用保存的鼠标位置显示翻译弹窗
-    showTranslatePopup(lastMousePosition.x, lastMousePosition.y);
+    // 获取弹窗位置
+    let popupX = lastMousePosition.x;
+    let popupY = lastMousePosition.y;
+    
+    // 如果位置为(0,0)，说明在PDF等特殊页面中无法获取鼠标位置
+    // 使用视口中心作为备选位置
+    if (popupX === 0 && popupY === 0) {
+      popupX = window.innerWidth / 2 + window.scrollX;
+      popupY = window.innerHeight / 3 + window.scrollY;
+    }
+    
+    // 使用位置显示翻译弹窗
+    showTranslatePopup(popupX, popupY);
   }
 
   /**
