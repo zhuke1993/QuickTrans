@@ -254,7 +254,8 @@
   }
 
   /**
-   * 执行翻译
+   * 执行翻译 - 默认启用流式输出
+   * 使用 Port 长连接实现流式翻译，结果逐字显示，提供更好的用户体验
    */
   async function performTranslation(sourceLanguage, targetLanguage) {
     const resultDiv = document.getElementById('ai-translate-result');
@@ -272,46 +273,89 @@
     copyBtn.disabled = true;
 
     try {
-      // 调用后台脚本进行翻译
-      const response = await chrome.runtime.sendMessage({
-        action: 'translate',
+      // 建立流式连接（默认启用）
+      const port = chrome.runtime.connect({ name: 'translation-stream' });
+      
+      let fullTranslation = '';
+      let isStreamStarted = false;
+
+      // 监听流式数据
+      port.onMessage.addListener((msg) => {
+        if (msg.type === 'chunk') {
+          // 第一次收到数据时，清除加载动画
+          if (!isStreamStarted) {
+            isStreamStarted = true;
+            resultDiv.innerHTML = '';
+          }
+          
+          // 实时更新翻译结果
+          fullTranslation = msg.fullText;
+          resultDiv.innerHTML = escapeHtml(fullTranslation).replace(/\n/g, '<br>');
+          
+          // 每次更新后重新调整弹窗位置（防止内容增长导致超出视窗）
+          if (currentPopup && currentIcon) {
+            const iconRect = currentIcon.getBoundingClientRect();
+            const iconX = iconRect.left + window.scrollX;
+            const iconY = iconRect.top + window.scrollY;
+            requestAnimationFrame(() => {
+              adjustPopupPosition(currentPopup, iconX, iconY);
+            });
+          }
+          
+        } else if (msg.type === 'complete') {
+          // 翻译完成
+          const response = msg.result;
+          
+          if (response.success) {
+            // 如果是缓存结果或源目标语言相同，直接显示
+            if (response.cached || response.message) {
+              resultDiv.innerHTML = escapeHtml(response.translatedText).replace(/\n/g, '<br>');
+            }
+            
+            // 启用复制按钮
+            copyBtn.disabled = false;
+            copyBtn.dataset.translation = response.translatedText;
+
+            // 更新底部信息栏显示模型信息
+            const infoDiv = document.querySelector('.ai-translate-popup-info');
+            if (infoDiv && response.model) {
+              infoDiv.innerHTML = `AI翻译助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+            }
+
+            // 显示缓存提示
+            if (response.cached) {
+              resultDiv.innerHTML += '<div style="margin-top: 8px; font-size: 11px; color: #999;">(缓存结果)</div>';
+            }
+
+            // 翻译完成后重新调整弹窗位置
+            if (currentPopup && currentIcon) {
+              const iconRect = currentIcon.getBoundingClientRect();
+              const iconX = iconRect.left + window.scrollX;
+              const iconY = iconRect.top + window.scrollY;
+              
+              requestAnimationFrame(() => {
+                adjustPopupPosition(currentPopup, iconX, iconY);
+              });
+            }
+            
+          } else {
+            // 显示错误信息
+            showError(response.errorMessage, response.errorCode);
+          }
+          
+          // 断开连接
+          port.disconnect();
+        }
+      });
+
+      // 发送翻译请求
+      port.postMessage({
+        action: 'translate-stream',
         text: currentSelectedText,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage
       });
 
-      if (response.success) {
-        // 显示翻译结果
-        resultDiv.innerHTML = escapeHtml(response.translatedText).replace(/\n/g, '<br>');
-        copyBtn.disabled = false;
-        copyBtn.dataset.translation = response.translatedText;
-
-        // 更新底部信息栏显示模型信息
-        const infoDiv = document.querySelector('.ai-translate-popup-info');
-        if (infoDiv && response.model) {
-          infoDiv.innerHTML = `AI翻译助手<span style="margin: 0 4px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
-        }
-
-        // 显示缓存提示
-        if (response.cached) {
-          resultDiv.innerHTML += '<div style="margin-top: 8px; font-size: 11px; color: #999;">(缓存结果)</div>';
-        }
-
-        // 翻译完成后重新调整弹窗位置，因为内容高度可能发生变化
-        if (currentPopup && currentIcon) {
-          // 获取图标位置作为参考点
-          const iconRect = currentIcon.getBoundingClientRect();
-          const iconX = iconRect.left + window.scrollX;
-          const iconY = iconRect.top + window.scrollY;
-          
-          requestAnimationFrame(() => {
-            adjustPopupPosition(currentPopup, iconX, iconY);
-          });
-        }
-      } else {
-        // 显示错误信息
-        showError(response.errorMessage, response.errorCode);
-      }
     } catch (error) {
       console.error('Translation error:', error);
       showError('翻译失败，请稍后重试', 'UNKNOWN_ERROR');

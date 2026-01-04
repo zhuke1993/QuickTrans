@@ -11,7 +11,8 @@ importScripts('storage-utils.js', 'language-detector.js');
  */
 const TranslationService = {
   /**
-   * 调用LLM API进行翻译
+   * 调用LLM API进行翻译（非流式，仅用于向后兼容）
+   * 注意：推荐使用 Port 连接进行流式翻译，提供更好的用户体验
    * @param {string} text - 待翻译文本
    * @param {string} targetLanguage - 目标语言代码
    * @param {string} sourceLanguage - 源语言代码（可选）
@@ -92,19 +93,85 @@ const TranslationService = {
   },
 
   /**
+   * 处理流式响应
+   * @param {Response} response - Fetch响应对象
+   * @param {Function} onChunk - 数据块回调函数
+   * @param {string} model - 模型名称
+   * @returns {Promise<Object>} 完整的翻译结果
+   */
+  async handleStreamResponse(response, onChunk, model) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        // 解码数据块
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          // SSE格式: "data: {...}"
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6); // 移除 "data: " 前缀
+            
+            // 流结束标记
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              
+              if (content) {
+                fullText += content;
+                // 调用回调函数，实时传递数据块
+                onChunk(content, fullText);
+              }
+            } catch (e) {
+              console.error('解析流数据失败:', e, 'data:', data);
+            }
+          }
+        }
+      }
+
+      return {
+        success: true,
+        translatedText: fullText,
+        model: model
+      };
+
+    } catch (error) {
+      console.error('流式处理错误:', error);
+      return {
+        success: false,
+        errorMessage: '流式处理失败: ' + error.message,
+        errorCode: 'STREAM_ERROR'
+      };
+    }
+  },
+
+  /**
    * 调用LLM API
    * @param {Object} apiConfig - API配置
    * @param {string} systemPrompt - 系统提示
    * @param {string} userPrompt - 用户提示
+   * @param {Function} onChunk - 流式数据回调函数（可选）
    * @returns {Promise<Object>} API响应
    */
-  async callLLMAPI(apiConfig, systemPrompt, userPrompt) {
+  async callLLMAPI(apiConfig, systemPrompt, userPrompt, onChunk = null) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
     try {
       // 使用配置中的模型，如果没有配置则使用默认值
       const model = apiConfig.model;
+      const useStream = !!onChunk; // 如果提供了回调函数，则启用流式
       
       const response = await fetch(apiConfig.apiEndpoint, {
         method: 'POST',
@@ -119,7 +186,8 @@ const TranslationService = {
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.3,
-          max_tokens: 2000
+          max_tokens: 2000,
+          stream: useStream // 启用流式输出
         }),
         signal: controller.signal
       });
@@ -157,6 +225,12 @@ const TranslationService = {
         };
       }
 
+      // 流式处理
+      if (useStream) {
+        return await this.handleStreamResponse(response, onChunk, apiConfig.model);
+      }
+      
+      // 非流式处理（兼容原有逻辑）
       const data = await response.json();
       
       // 提取翻译结果
@@ -224,12 +298,138 @@ const TranslationService = {
 };
 
 /**
+ * 流式翻译连接监听器（默认启用，推荐使用）
+ * 使用 Port 长连接支持流式数据传输，提供实时的翻译反馈
+ * 优势：
+ * - 渐进式显示翻译结果，用户体验更好
+ * - 更快的首字响应时间
+ * - 支持长文本翻译时的实时反馈
+ */
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'translation-stream') {
+    port.onMessage.addListener(async (msg) => {
+      if (msg.action === 'translate-stream') {
+        const { text, targetLanguage, sourceLanguage } = msg;
+        
+        try {
+          // 检测源语言
+          const detectedLanguage = sourceLanguage || LanguageDetector.detect(text);
+          
+          // 如果源语言和目标语言相同，直接返回
+          if (detectedLanguage === targetLanguage) {
+            port.postMessage({
+              type: 'complete',
+              result: {
+                success: true,
+                translatedText: text,
+                detectedLanguage: detectedLanguage,
+                message: '源语言和目标语言相同'
+              }
+            });
+            return;
+          }
+
+          // 检查缓存
+          const cached = await StorageUtils.getTranslationCache(text, targetLanguage);
+          if (cached) {
+            port.postMessage({
+              type: 'complete',
+              result: {
+                success: true,
+                translatedText: cached,
+                detectedLanguage: detectedLanguage,
+                cached: true
+              }
+            });
+            return;
+          }
+
+          // 获取API配置
+          const apiConfig = await StorageUtils.getActiveApiConfig();
+          if (!apiConfig) {
+            port.postMessage({
+              type: 'complete',
+              result: {
+                success: false,
+                errorMessage: '未配置API，请先在设置页面添加API配置',
+                errorCode: 'NO_API_CONFIG'
+              }
+            });
+            return;
+          }
+
+          // 构建翻译提示词
+          const targetLangName = LanguageDetector.getLanguageName(targetLanguage);
+          const sourceLangName = LanguageDetector.getLanguageName(detectedLanguage);
+
+          const systemPrompt = `你是一个专业的翻译助手。请将用户提供的文本翻译成${targetLangName}。
+要求：
+1. 只返回翻译结果，不要添加任何解释或说明
+2. 保持原文的语气和风格
+3. 对于专业术语，提供准确的翻译
+4. 保持原文的格式（如换行、段落等）`;
+
+          const userPrompt = `请将以下${sourceLangName}文本翻译成${targetLangName}：\n\n${text}`;
+
+          // 流式回调函数 - 通过port发送数据块
+          const onChunk = (chunk, fullText) => {
+            port.postMessage({
+              type: 'chunk',
+              chunk: chunk,
+              fullText: fullText
+            });
+          };
+
+          // 执行翻译
+          const result = await TranslationService.callLLMAPI(
+            apiConfig,
+            systemPrompt,
+            userPrompt,
+            onChunk // 传入流式回调
+          );
+
+          // 如果翻译成功，缓存结果
+          if (result.success) {
+            await StorageUtils.saveTranslationCache(text, targetLanguage, result.translatedText);
+          }
+
+          // 发送完成消息
+          port.postMessage({
+            type: 'complete',
+            result: {
+              ...result,
+              detectedLanguage: detectedLanguage,
+              model: apiConfig.model,
+              apiConfigName: apiConfig.name
+            }
+          });
+
+        } catch (error) {
+          console.error('Stream translation error:', error);
+          port.postMessage({
+            type: 'complete',
+            result: {
+              success: false,
+              errorMessage: error.message || '翻译失败，请稍后重试',
+              errorCode: 'TRANSLATION_ERROR'
+            }
+          });
+        }
+      }
+    });
+  }
+});
+
+/**
  * 消息监听器
  * 处理来自content script和options页面的消息
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // 翻译请求
+  // 旧的非流式翻译接口已废弃，统一使用流式接口 (Port 连接)
+  // 如果收到旧的翻译请求，引导使用流式接口
   if (request.action === 'translate') {
+    console.warn('检测到旧的非流式翻译请求，建议使用 Port 连接进行流式翻译');
+    // 为了向后兼容，仍然支持，但不推荐
     TranslationService.translate(
       request.text,
       request.targetLanguage,

@@ -142,10 +142,10 @@
 /* 弹窗内容区 */
 .ai-translate-popup-content {
   padding: 16px;
-  max-height: calc(100vh - 200px); /* 为header和footer留出空间 */
   overflow-y: auto;
-  flex: 1;
-  min-height: 0; /* 允许flex收缩 */
+  flex: 1 1 auto; /* 允许收缩和扩展 */
+  min-height: 0; /* 允许flex收缩，关键属性 */
+  max-height: none; /* 由弹窗整体max-height控制 */
 }
 
 /* 原文区域 */
@@ -175,6 +175,8 @@
   color: #333;
   line-height: 1.8;
   min-height: 60px;
+  word-wrap: break-word; /* 确保长文本换行 */
+  overflow-wrap: break-word;
 }
 
 /* 加载状态 */
