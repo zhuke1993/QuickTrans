@@ -251,6 +251,10 @@
     // 应用最终位置
     popup.style.left = `${popupX}px`;
     popup.style.top = `${popupY}px`;
+
+    // 动态计算并设置弹窗的最大高度，确保底部按钮区域始终可见
+    const availableHeight = viewportHeight - popupY - margin;
+    popup.style.maxHeight = `${availableHeight}px`;
   }
 
   /**
