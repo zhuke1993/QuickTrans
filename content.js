@@ -186,7 +186,9 @@
                 <span class="ai-translate-dict-phonetic" id="ai-translate-phonetic"></span>
               </div>
               <button class="ai-translate-tts-btn" id="ai-translate-word-tts" title="播放单词发音">
-                <span class="ai-translate-tts-icon">🔊</span>
+                <svg class="ai-translate-tts-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -195,7 +197,9 @@
             <div class="ai-translate-dict-context-header">
               <div class="ai-translate-dict-context-label">📝 上下文</div>
               <button class="ai-translate-tts-btn ai-translate-tts-btn-small" id="ai-translate-sentence-tts" title="播放句子发音">
-                <span class="ai-translate-tts-icon">🔊</span>
+                <svg class="ai-translate-tts-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
               </button>
             </div>
             <div class="ai-translate-dict-context-text" id="ai-translate-context">${escapeHtml(currentContext).replace(new RegExp(`(${escapeHtml(currentSelectedText)})`, 'gi'), '<mark class="ai-translate-highlight">$1</mark>')}</div>
@@ -924,18 +928,21 @@
     switch (state) {
       case 'loading':
         btn.classList.add('loading');
-        icon.textContent = '⏳';
+        // 加载状态 - 显示旋转的加载图标
+        icon.innerHTML = '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.4 31.4" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle>';
         btn.disabled = false;
         btn.title = '正在合成...';
         break;
       case 'playing':
         btn.classList.add('playing');
-        icon.textContent = '⏸️';
+        // 播放状态 - 显示暂停图标
+        icon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>';
         btn.disabled = false;
         btn.title = '停止播放';
         break;
       default:
-        icon.textContent = '🔊';
+        // 默认状态 - 显示音量图标
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>';
         btn.disabled = false;
         btn.title = state === 'word' ? '播放单词发音' : '播放句子发音';
     }
@@ -951,12 +958,15 @@
     
     const icon = btn.querySelector('.ai-translate-tts-icon');
     if (icon) {
-      icon.textContent = '⚠️';
+      // 错误状态 - 显示警告图标
+      icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>';
       btn.title = message;
+      btn.classList.add('error');
     }
     
     // 2秒后恢复默认状态
     setTimeout(() => {
+      btn.classList.remove('error');
       updateTTSButtonState(btn, 'default');
     }, 2000);
   }

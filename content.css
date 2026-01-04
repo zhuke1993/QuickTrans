@@ -561,23 +561,21 @@
 
 /* TTS图标 */
 .ai-translate-tts-icon {
-  font-size: 16px;
-  line-height: 1;
+  width: 18px;
+  height: 18px;
   display: inline-block;
+  color: white;
+  stroke: currentColor;
 }
 
 .ai-translate-tts-btn-small .ai-translate-tts-icon {
-  font-size: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 /* 加载状态动画 */
 .ai-translate-tts-btn.loading .ai-translate-tts-icon {
-  animation: tts-loading 1s linear infinite;
-}
-
-@keyframes tts-loading {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  /* SVG内部已有动画，不需要额外CSS动画 */
 }
 
 /* 播放状态样式 */
@@ -591,10 +589,19 @@
 
 /* 播放中的波形动画 */
 .ai-translate-tts-btn.playing .ai-translate-tts-icon {
-  animation: tts-wave 0.8s ease-in-out infinite;
+  animation: tts-pulse 0.8s ease-in-out infinite;
 }
 
-@keyframes tts-wave {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+@keyframes tts-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 错误状态样式 */
+.ai-translate-tts-btn.error {
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+}
+
+.ai-translate-tts-btn.error .ai-translate-tts-icon {
+  color: white;
 }
