@@ -7,6 +7,43 @@
 importScripts('storage-utils.js', 'language-detector.js');
 
 /**
+ * 简单的字符串哈希函数，用于生成缓存key
+ */
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * 从词典结果中提取上下文翻译
+ */
+function extractContextTranslation(text) {
+  if (!text) return '';
+  
+  // 尝试匹配 "上下文翻译：" 后面的内容
+  const patterns = [
+    /上下文翻译[:：]\s*([^\n]+)/,
+    /句子翻译[:：]\s*([^\n]+)/,
+    /整句翻译[:：]\s*([^\n]+)/,
+    /翻译[:：]\s*([^\n]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  
+  return '';
+}
+
+/**
  * 翻译服务
  */
 const TranslationService = {
@@ -326,18 +363,21 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'dictionary-stream') {
     port.onMessage.addListener(async (msg) => {
       if (msg.action === 'dictionary-lookup') {
-        const { word } = msg;
+        const { word, context } = msg;
         
         try {
-          // 检查缓存
-          const cacheKey = `dict_${word.toLowerCase()}`;
+          // 检查缓存（包含上下文的缓存key）
+          const cacheKey = context 
+            ? `dict_ctx_${word.toLowerCase()}_${hashString(context)}` 
+            : `dict_${word.toLowerCase()}`;
           const cached = await StorageUtils.getTranslationCache(cacheKey, 'dictionary');
           if (cached) {
             port.postMessage({
               type: 'complete',
               result: {
                 success: true,
-                definition: cached,
+                definition: cached.definition || cached,
+                contextTranslation: cached.contextTranslation || '',
                 cached: true
               }
             });
@@ -358,8 +398,37 @@ chrome.runtime.onConnect.addListener((port) => {
             return;
           }
 
-          // 构建词典查询提示词
-          const systemPrompt = `你是一个专业的英文词典助手。请为用户提供的英文单词给出详细的词典释义。
+          // 构建词典查询提示词 - 根据是否有上下文构建不同的提示词
+          let systemPrompt, userPrompt;
+          
+          if (context) {
+            // 有上下文的情况
+            systemPrompt = `你是一个专业的英文词典助手。请根据给定的上下文，为用户提供的英文单词给出详细的词典释义。
+
+请按以下格式返回：
+
+## 词典释义
+1. 音标（使用国际音标，格式如 /ˈwɜːd/）
+2. 词性和释义（包含中文解释，如 n. 名词，每个词性分开列出）
+3. 常用例句（1-2个，并提供中文翻译）
+
+## 上下文分析
+1. 单词含义：（该单词在给定句子中的具体意思）
+2. 句子翻译：（将整个上下文句子翻译成中文）
+
+要求：
+- 简洁明了，不要赘述
+- 释义使用中文
+- 重点突出在当前上下文中的用法
+- 如果是不常见的词，可以适当扩展说明`;
+
+            userPrompt = `单词：${word}
+上下文：${context}
+
+请根据上下文查询该单词，并翻译整个句子。`;
+          } else {
+            // 无上下文的情况（原有逻辑）
+            systemPrompt = `你是一个专业的英文词典助手。请为用户提供的英文单词给出详细的词典释义。
 
 请按以下格式返回：
 1. 音标（使用国际音标，格式如 /ˈwɜːd/）
@@ -372,7 +441,8 @@ chrome.runtime.onConnect.addListener((port) => {
 - 例句附带中文翻译
 - 如果是不常见的词，可以适当扩展说明`;
 
-          const userPrompt = `请查询单词：${word}`;
+            userPrompt = `请查询单词：${word}`;
+          }
 
           // 流式回调函数
           const onChunk = (chunk, fullText) => {
@@ -393,7 +463,11 @@ chrome.runtime.onConnect.addListener((port) => {
 
           // 如果查询成功，缓存结果并更新token统计
           if (result.success) {
-            await StorageUtils.saveTranslationCache(cacheKey, 'dictionary', result.translatedText);
+            // 缓存结果（包含上下文翻译）
+            const cacheData = context 
+              ? { definition: result.translatedText, contextTranslation: extractContextTranslation(result.translatedText) }
+              : result.translatedText;
+            await StorageUtils.saveTranslationCache(cacheKey, 'dictionary', cacheData);
             
             // 更新token统计
             if (result.usage) {
@@ -407,6 +481,7 @@ chrome.runtime.onConnect.addListener((port) => {
             result: {
               success: result.success,
               definition: result.translatedText,
+              contextTranslation: context ? extractContextTranslation(result.translatedText) : '',
               model: apiConfig.model,
               usage: result.usage,
               errorMessage: result.errorMessage,

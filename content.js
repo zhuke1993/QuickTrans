@@ -10,6 +10,7 @@
   let currentIcon = null;
   let currentPopup = null;
   let currentSelectedText = '';
+  let currentContext = '';  // 当前单词所在的上下文句子
   let debounceTimer = null;
   let userPreferences = null;
   let isDictionaryMode = false;  // 是否为词典模式
@@ -83,6 +84,14 @@
       currentSelectedText = selectedText;
       // 判断是否为单词（词典模式）
       isDictionaryMode = isSingleWord(selectedText);
+      
+      // 如果是词典模式，获取上下文
+      if (isDictionaryMode) {
+        currentContext = getWordContext();
+      } else {
+        currentContext = '';
+      }
+      
       showTranslateIcon(e);
     }, 200);
   }
@@ -169,6 +178,13 @@
             <span class="ai-translate-dict-word-text">${escapeHtml(currentSelectedText)}</span>
             <span class="ai-translate-dict-phonetic" id="ai-translate-phonetic"></span>
           </div>
+          ${currentContext ? `
+          <div class="ai-translate-dict-context">
+            <div class="ai-translate-dict-context-label">📝 上下文</div>
+            <div class="ai-translate-dict-context-text" id="ai-translate-context">${escapeHtml(currentContext).replace(new RegExp(`(${escapeHtml(currentSelectedText)})`, 'gi'), '<mark class="ai-translate-highlight">$1</mark>')}</div>
+            <div class="ai-translate-dict-context-trans" id="ai-translate-context-trans"></div>
+          </div>
+          ` : ''}
           <div class="ai-translate-popup-result ai-translate-dict-result" id="ai-translate-result">
             <div class="ai-translate-popup-loading">
               <div class="ai-translate-popup-spinner"></div>
@@ -356,6 +372,13 @@
               extractAndShowPhonetic(response.definition, phoneticSpan);
             }
             
+            // 显示上下文翻译
+            const contextTransDiv = document.getElementById('ai-translate-context-trans');
+            if (contextTransDiv && response.contextTranslation) {
+              contextTransDiv.innerHTML = `<span class="ai-translate-dict-context-trans-label">译文：</span>${escapeHtml(response.contextTranslation)}`;
+              contextTransDiv.style.display = 'block';
+            }
+            
             // 启用复制按钮
             copyBtn.disabled = false;
             copyBtn.dataset.translation = response.definition || fullResult;
@@ -399,10 +422,11 @@
         }
       });
 
-      // 发送词典查询请求
+      // 发送词典查询请求（包含上下文）
       port.postMessage({
         action: 'dictionary-lookup',
-        word: currentSelectedText
+        word: currentSelectedText,
+        context: currentContext
       });
 
     } catch (error) {
@@ -412,19 +436,40 @@
   }
 
   /**
-   * 格式化词典结果为HTML
+   * 格式化词典结果为HTML（支持Markdown渲染）
    */
   function formatDictionaryResult(text) {
     if (!text) return '';
     
-    // 将文本转换为HTML，处理换行和特殊格式
-    let html = escapeHtml(text)
-      .replace(/\n/g, '<br>')
-      // 突出显示词性标记（如 n. v. adj. 等）
-      .replace(/\b(n\.|v\.|adj\.|adv\.|prep\.|conj\.|pron\.|int\.|vt\.|vi\.|aux\.)/g, '<span class="ai-translate-dict-pos">$1</span>')
-      // 突出显示序号（如 1. 2. 3. 或 ① ② ③）
-      .replace(/(^|<br>)(\d+\.\s*)/g, '$1<span class="ai-translate-dict-num">$2</span>')
-      .replace(/([\u2460-\u2473])/g, '<span class="ai-translate-dict-num">$1</span>');
+    // 先转义HTML特殊字符
+    let html = escapeHtml(text);
+    
+    // 处理Markdown格式
+    // 1. 处理标题 ## -> h4, ### -> h5
+    html = html.replace(/^### (.+)$/gm, '<h5 class="ai-translate-dict-h5">$1</h5>');
+    html = html.replace(/^## (.+)$/gm, '<h4 class="ai-translate-dict-h4">$1</h4>');
+    
+    // 2. 处理加粗 **text**
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // 3. 处理斜体 *text*
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // 4. 处理行内代码 `code`
+    html = html.replace(/`([^`]+)`/g, '<code class="ai-translate-dict-code">$1</code>');
+    
+    // 5. 处理换行
+    html = html.replace(/\n/g, '<br>');
+    
+    // 6. 突出显示词性标记（如 n. v. adj. 等）
+    html = html.replace(/\b(n\.|v\.|adj\.|adv\.|prep\.|conj\.|pron\.|int\.|vt\.|vi\.|aux\.)/g, '<span class="ai-translate-dict-pos">$1</span>');
+    
+    // 7. 突出显示序号（如 1. 2. 3. 或 ① ② ③）
+    html = html.replace(/(^|<br>)(\d+\.\s*)/g, '$1<span class="ai-translate-dict-num">$2</span>');
+    html = html.replace(/([\u2460-\u2473])/g, '<span class="ai-translate-dict-num">$1</span>');
+    
+    // 8. 处理无序列表项 - item
+    html = html.replace(/(^|<br>)- /g, '$1<span class="ai-translate-dict-bullet">•</span> ');
     
     return html;
   }
@@ -698,6 +743,75 @@
   function getLanguageName(code, languages) {
     const lang = languages.find(l => l.code === code);
     return lang ? lang.name : code;
+  }
+
+  /**
+   * 获取选中单词的上下文（所在句子）
+   */
+  function getWordContext() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return '';
+    
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+    
+    // 获取文本节点的完整内容
+    let textContent = '';
+    let wordOffset = 0;
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      textContent = node.textContent || '';
+      wordOffset = range.startOffset;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      // 尝试获取父元素的文本内容
+      textContent = node.innerText || node.textContent || '';
+    }
+    
+    if (!textContent) return '';
+    
+    // 提取包含选中单词的句子
+    // 句子分隔符：. ! ? 。！？以及换行
+    const sentenceEnders = /[.!?。！？\n]/;
+    
+    // 向前查找句子开始位置
+    let sentenceStart = 0;
+    for (let i = wordOffset - 1; i >= 0; i--) {
+      if (sentenceEnders.test(textContent[i])) {
+        sentenceStart = i + 1;
+        break;
+      }
+    }
+    
+    // 向后查找句子结束位置
+    let sentenceEnd = textContent.length;
+    for (let i = wordOffset; i < textContent.length; i++) {
+      if (sentenceEnders.test(textContent[i])) {
+        sentenceEnd = i + 1;
+        break;
+      }
+    }
+    
+    // 提取句子并清理
+    let sentence = textContent.substring(sentenceStart, sentenceEnd).trim();
+    
+    // 如果句子太长，截取单词周围的上下文（前后各50个字符）
+    if (sentence.length > 150) {
+      const wordIndex = sentence.toLowerCase().indexOf(currentSelectedText.toLowerCase());
+      if (wordIndex !== -1) {
+        const contextStart = Math.max(0, wordIndex - 50);
+        const contextEnd = Math.min(sentence.length, wordIndex + currentSelectedText.length + 50);
+        sentence = (contextStart > 0 ? '...' : '') + 
+                   sentence.substring(contextStart, contextEnd) + 
+                   (contextEnd < sentence.length ? '...' : '');
+      }
+    }
+    
+    // 确保句子包含选中的单词
+    if (sentence.toLowerCase().includes(currentSelectedText.toLowerCase())) {
+      return sentence;
+    }
+    
+    return '';
   }
 
   /**

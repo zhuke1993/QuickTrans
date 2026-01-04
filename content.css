@@ -400,3 +400,100 @@
   color: #667eea;
   font-weight: 600;
 }
+
+/* ===================== 上下文区域样式 ===================== */
+
+/* 上下文容器 */
+.ai-translate-dict-context {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+/* 上下文标签 */
+.ai-translate-dict-context-label {
+  font-size: 12px;
+  color: #667eea;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* 上下文文本 */
+.ai-translate-dict-context-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4a5568;
+  word-break: break-word;
+}
+
+/* 上下文中单词高亮 */
+.ai-translate-highlight {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+/* 上下文翻译 */
+.ai-translate-dict-context-trans {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e0;
+  font-size: 13px;
+  color: #2d3748;
+  display: none;
+}
+
+.ai-translate-dict-context-trans-label {
+  color: #48bb78;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* ===================== Markdown渲染样式 ===================== */
+
+/* 二级标题 */
+.ai-translate-dict-h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 12px 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #667eea;
+  display: block;
+}
+
+/* 首个标题不需要上边距 */
+.ai-translate-dict-result .ai-translate-dict-h4:first-child {
+  margin-top: 0;
+}
+
+/* 三级标题 */
+.ai-translate-dict-h5 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin: 10px 0 6px 0;
+  display: block;
+}
+
+/* 行内代码 */
+.ai-translate-dict-code {
+  background: #edf2f7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  color: #e53e3e;
+}
+
+/* 无序列表项目符号 */
+.ai-translate-dict-bullet {
+  color: #667eea;
+  font-weight: bold;
+  margin-right: 4px;
+}
