@@ -1,0 +1,755 @@
+/**
+ * 翻译页面样式
+ * 延续QuickTrans的设计语言
+ */
+
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 容器 */
+.translator-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  margin: 0 auto;
+  max-width: 1400px;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+}
+
+/* 页面标题栏 */
+.translator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.header-title h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.header-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* 控制面板 */
+.control-panel {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 30px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.language-selector {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-selector label {
+  font-weight: 500;
+  color: #495057;
+}
+
+.lang-select {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.lang-select:hover {
+  border-color: #667eea;
+}
+
+.lang-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.arrow {
+  font-size: 18px;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.translate-btn {
+  padding: 10px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.translate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.translate-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.translate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.translate-btn.loading .btn-text::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 主要内容区域 */
+.main-content {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 20px 30px;
+  overflow: hidden;
+}
+
+/* 输入和结果区域共同样式 */
+.input-section,
+.result-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #dee2e6;
+}
+
+.section-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.input-toolbar,
+.result-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-btn {
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #495057;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.char-count {
+  font-size: 12px;
+  color: #6c757d;
+  padding: 0 8px;
+}
+
+/* 输入文本区域 */
+.input-textarea {
+  flex: 1;
+  padding: 20px;
+  border: none;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  font-family: inherit;
+  color: #333;
+}
+
+.input-textarea:focus {
+  outline: none;
+}
+
+.input-textarea::placeholder {
+  color: #adb5bd;
+}
+
+/* 翻译结果区域 */
+.result-display {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.result-placeholder {
+  color: #adb5bd;
+  text-align: center;
+  padding-top: 60px;
+  font-size: 15px;
+}
+
+.result-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #667eea;
+}
+
+.result-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+.result-loading-text {
+  font-size: 14px;
+  color: #667eea;
+}
+
+.result-error {
+  padding: 20px;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  color: #c53030;
+  margin: 20px;
+}
+
+.result-error-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-error-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.error-btn {
+  padding: 6px 12px;
+  border: 1px solid #c53030;
+  background: white;
+  color: #c53030;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.error-btn:hover {
+  background: #c53030;
+  color: white;
+}
+
+/* 词典弹窗 */
+.dictionary-popup {
+  position: fixed;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 450px;
+  max-height: 500px;
+  overflow: hidden;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dict-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.dict-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dict-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.dict-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dict-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.dict-word-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* 单词展示区 */
+.dict-word {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+  border-radius: 8px;
+  border-left: 4px solid #48bb78;
+}
+
+.dict-word-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dict-word-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dict-word-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2d3748;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.dict-phonetic {
+  font-size: 14px;
+  color: #718096;
+  font-family: 'Lucida Sans Unicode', 'Arial Unicode MS', sans-serif;
+  display: none; /* 默认隐藏，有音标时显示 */
+}
+
+.dict-context {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.dict-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dict-context-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #667eea;
+  display: block;
+}
+
+.dict-context-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4a5568;
+  word-break: break-word;
+}
+
+.dict-context-text mark,
+.dict-context-text .dict-highlight {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.dict-context-trans {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e0;
+  font-size: 13px;
+  color: #2d3748;
+  display: none;
+}
+
+.dict-result {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #4a5568;
+}
+
+.dict-result h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 12px 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #667eea;
+  display: block;
+}
+
+.dict-result h5 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin: 10px 0 6px 0;
+  display: block;
+}
+
+.dict-result strong {
+  color: #667eea;
+}
+
+.dict-result code {
+  background: #edf2f7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  color: #e53e3e;
+}
+
+.dict-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  color: #667eea;
+}
+
+.dict-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+.dict-footer {
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: center;
+}
+
+.dict-copy-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.dict-copy-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .input-section,
+  .result-section {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .translator-header {
+    padding: 15px 20px;
+  }
+  
+  .header-title h1 {
+    font-size: 20px;
+  }
+  
+  .control-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px 20px;
+  }
+  
+  .language-selector {
+    flex-wrap: wrap;
+  }
+  
+  .translate-btn {
+    width: 100%;
+  }
+  
+  .main-content {
+    padding: 15px 20px;
+    gap: 15px;
+  }
+  
+  .dictionary-popup {
+    max-width: 90%;
+    max-height: 70vh;
+  }
+}
+
+/* 滚动条样式 */
+.result-display::-webkit-scrollbar,
+.dict-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.result-display::-webkit-scrollbar-track,
+.dict-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.result-display::-webkit-scrollbar-thumb,
+.dict-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.result-display::-webkit-scrollbar-thumb:hover,
+.dict-content::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* ===================== 词性标记和格式化样式 ===================== */
+
+/* 词性标记 */
+.dict-result .dict-pos {
+  display: inline-block;
+  background: #667eea;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 6px;
+  font-style: italic;
+}
+
+/* 序号 */
+.dict-result .dict-num {
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* 无序列表项目符号 */
+.dict-result .dict-bullet {
+  color: #667eea;
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+/* ===================== TTS发音按钮样式 ===================== */
+
+/* TTS按钮基础样式 */
+.dict-tts-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-tts-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.dict-tts-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.dict-tts-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* TTS按钮小尺寸版本（用于上下文区域） */
+.dict-tts-btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* TTS图标 */
+.dict-tts-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  color: white;
+  stroke: currentColor;
+}
+
+.dict-tts-btn-small .dict-tts-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 加载状态动画 */
+.dict-tts-btn.loading .dict-tts-icon {
+  /* SVG内部已有动画，不需要额外CSS动画 */
+}
+
+/* 播放状态样式 */
+.dict-tts-btn.playing {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.dict-tts-btn.playing:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+}
+
+/* 播放中的波形动画 */
+.dict-tts-btn.playing .dict-tts-icon {
+  animation: tts-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes tts-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 错误状态样式 */
+.dict-tts-btn.error {
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+}
+
+.dict-tts-btn.error .dict-tts-icon {
+  color: white;
+}

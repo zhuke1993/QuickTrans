@@ -1044,6 +1044,13 @@ function createContextMenus() {
       contexts: ['selection']
     });
     
+    // 创建在翻译页面中打开菜单项
+    chrome.contextMenus.create({
+      id: 'quicktrans-open-translator',
+      title: '📝 在翻译页面中打开',
+      contexts: ['selection']
+    });
+    
     console.log('右键菜单已创建');
   });
 }
@@ -1062,6 +1069,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     } catch (error) {
       console.error('发送翻译请求失败:', error);
     }
+  }
+  
+  if (info.menuItemId === 'quicktrans-open-translator' && info.selectionText) {
+    // 在新标签页打开翻译页面，并传递选中的文本
+    const url = chrome.runtime.getURL('translator.html') + '?text=' + encodeURIComponent(info.selectionText);
+    chrome.tabs.create({ url });
   }
 });
 
@@ -1105,3 +1118,15 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     说明: stats.note
   });
 })();
+
+/**
+ * 快捷键命令处理
+ */
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'open-translator') {
+    // 打开翻译页面
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('translator.html')
+    });
+  }
+});
