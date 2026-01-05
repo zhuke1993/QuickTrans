@@ -421,14 +421,7 @@
    * 判断是否为单个单词
    */
   function isSingleWord(text) {
-    // 移除标点符号
-    const cleaned = text.replace(/[.,!?;:'"()]/g, '').trim();
-    // 检查是否包含空格（多个单词）
-    if (cleaned.includes(' ') || cleaned.includes('\n')) {
-      return false;
-    }
-    // 检查是否为英文单词
-    return /^[a-zA-Z-']+$/.test(cleaned);
+    return DictionaryUtils.isSingleWord(text);
   }
 
   /**
@@ -620,10 +613,10 @@
           
           // 实时更新结果
           fullResult = msg.fullText;
-          resultDiv.innerHTML = formatDictionaryResult(fullResult);
+          resultDiv.innerHTML = DictionaryUtils.formatDictionaryResult(fullResult);
           
           // 提取音标
-          extractAndShowPhonetic(fullResult, phoneticSpan);
+          DictionaryUtils.extractAndShowPhonetic(fullResult, phoneticSpan);
           
         } else if (msg.type === 'complete') {
           const response = msg.result;
@@ -631,13 +624,13 @@
           if (response.success) {
             // 如果是缓存结果，直接显示
             if (response.cached) {
-              resultDiv.innerHTML = formatDictionaryResult(response.definition);
-              extractAndShowPhonetic(response.definition, phoneticSpan);
+              resultDiv.innerHTML = DictionaryUtils.formatDictionaryResult(response.definition);
+              DictionaryUtils.extractAndShowPhonetic(response.definition, phoneticSpan);
             }
             
             // 显示上下文翻译
             if (contextTransDiv && response.contextTranslation) {
-              contextTransDiv.innerHTML = `<span style="color: #667eea; font-weight: 500;">译文：</span>${escapeHtml(response.contextTranslation)}`;
+              contextTransDiv.innerHTML = `<span style="color: #667eea; font-weight: 500;">译文：</span>${DictionaryUtils.escapeHtml(response.contextTranslation)}`;
               contextTransDiv.style.display = 'block';
             }
             
@@ -647,7 +640,7 @@
             
           } else {
             // 显示错误
-            resultDiv.innerHTML = `<div style="color: #e53e3e; padding: 20px;">${escapeHtml(response.errorMessage)}</div>`;
+            resultDiv.innerHTML = `<div style="color: #e53e3e; padding: 20px;">${DictionaryUtils.escapeHtml(response.errorMessage)}</div>`;
           }
           
           // 断开连接
@@ -866,7 +859,7 @@
             console.log('TTS返回音频数据，Base64长度:', response.audioData.length);
             
             // 检测音频格式
-            const detectedFormat = detectAudioFormat(response.audioData);
+            const detectedFormat = DictionaryUtils.detectAudioFormat(response.audioData);
             console.log('检测到的音频格式:', detectedFormat);
             
             // 将 Base64 转为 ArrayBuffer
@@ -881,7 +874,7 @@
             // 如果是 PCM 原始数据，需要先转换为 WAV
             if (!detectedFormat || detectedFormat === 'pcm') {
               console.log('检测为 PCM 数据，将转换为 WAV 格式');
-              const wavBuffer = convertPCMToWAV(bytes.buffer);
+              const wavBuffer = DictionaryUtils.convertPCMToWAV(bytes.buffer);
               playAudioBuffer(wavBuffer, btn);
             } else {
               playAudioBuffer(bytes.buffer, btn);
@@ -1036,120 +1029,24 @@
   }
   
   /**
-   * 将 PCM ArrayBuffer 转换为 WAV 格式
-   * @param {ArrayBuffer} pcmBuffer - PCM 音频数据
-   * @returns {ArrayBuffer} WAV 格式的音频数据
-   */
-  function convertPCMToWAV(pcmBuffer) {
-    const pcmData = new Uint8Array(pcmBuffer);
-    
-    // WAV 文件参数（默认，可能需要根据实际 API 返回调整）
-    const numChannels = 1; // 单声道
-    const sampleRate = 24000; // 采样率
-    const bitsPerSample = 16; // 每个采样的位数
-    const blockAlign = numChannels * (bitsPerSample / 8);
-    const byteRate = sampleRate * blockAlign;
-    const dataSize = pcmData.length;
-    const fileSize = 36 + dataSize;
-    
-    // 创建 WAV 文件头
-    const wavHeader = new ArrayBuffer(44);
-    const view = new DataView(wavHeader);
-    
-    // RIFF chunk descriptor
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, fileSize, true);
-    writeString(view, 8, 'WAVE');
-    
-    // fmt sub-chunk
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // fmt chunk size
-    view.setUint16(20, 1, true); // audio format (1 = PCM)
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitsPerSample, true);
-    
-    // data sub-chunk
-    writeString(view, 36, 'data');
-    view.setUint32(40, dataSize, true);
-    
-    // 合并 header 和 PCM 数据
-    const wavData = new Uint8Array(44 + dataSize);
-    wavData.set(new Uint8Array(wavHeader), 0);
-    wavData.set(pcmData, 44);
-    
-    console.log('PCM 转换为 WAV 成功，文件大小:', wavData.length);
-    return wavData.buffer;
-  }
-  
-  /**
    * 检测音频数据的实际格式
-   * @param {string} base64Data - Base64编码的音频数据
-   * @returns {string|null} 检测到的格式，或null
    */
   function detectAudioFormat(base64Data) {
-    try {
-      // 解码前几个字节来检测文件头
-      const prefix = base64Data.substring(0, 20);
-      const bytes = atob(prefix);
-      const header = new Uint8Array(bytes.length);
-      for (let i = 0; i < bytes.length; i++) {
-        header[i] = bytes.charCodeAt(i);
-      }
-      
-      // MP3: 以 0xFF 0xFB 或 0xFF 0xF3 开头，或 ID3 tag
-      if ((header[0] === 0xFF && (header[1] & 0xE0) === 0xE0) ||
-          (header[0] === 0x49 && header[1] === 0x44 && header[2] === 0x33)) { // "ID3"
-        return 'mp3';
-      }
-      
-      // WAV: 以 "RIFF" 开头
-      if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) { // "RIFF"
-        return 'wav';
-      }
-      
-      // Opus: 以 "OggS" 开头
-      if (header[0] === 0x4F && header[1] === 0x67 && header[2] === 0x67 && header[3] === 0x53) { // "OggS"
-        return 'opus';
-      }
-      
-      // AAC: 以 0xFF 0xF1 或 0xFF 0xF9 开头
-      if (header[0] === 0xFF && (header[1] === 0xF1 || header[1] === 0xF9)) {
-        return 'aac';
-      }
-      
-      // FLAC: 以 "fLaC" 开头
-      if (header[0] === 0x66 && header[1] === 0x4C && header[2] === 0x61 && header[3] === 0x43) { // "fLaC"
-        return 'flac';
-      }
-      
-      // 如果都不匹配，可能是PCM原始数据
-      console.log('未检测到知名音频格式，可能是PCM数据');
-      return 'pcm';
-    } catch (error) {
-      console.error('检测音频格式失败:', error);
-      return null;
-    }
+    return DictionaryUtils.detectAudioFormat(base64Data);
   }
   
   /**
-   * 向DataView写入字符串
+   * 将 PCM ArrayBuffer 转换为 WAV 格式
    */
-  function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
+  function convertPCMToWAV(pcmBuffer) {
+    return DictionaryUtils.convertPCMToWAV(pcmBuffer);
   }
-
+  
   /**
    * HTML转义
    */
   function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return DictionaryUtils.escapeHtml(text);
   }
 
   // 页面加载完成后初始化
