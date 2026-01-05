@@ -10,6 +10,7 @@
   const elements = {
     inputText: document.getElementById('input-text'),
     resultText: document.getElementById('result-text'),
+    resultInfo: document.getElementById('result-info'),
     sourceLang: document.getElementById('source-lang'),
     targetLang: document.getElementById('target-lang'),
     translateBtn: document.getElementById('translate-btn'),
@@ -250,6 +251,19 @@
               elements.resultText.innerHTML += '<div style="margin-top: 12px; font-size: 12px; color: #999; text-align: right;">(缓存结果)</div>';
             }
             
+            // 更新底部信息栏显示模型信息和token消耗
+            if (elements.resultInfo && response.model) {
+              let infoHtml = `AI翻译助手<span style="margin: 0 8px; color: #ddd;">|</span><span style="color: #667eea;">${escapeHtml(response.model)}</span>`;
+              
+              // 添加token消耗信息
+              if (response.usage) {
+                infoHtml += `<span style="margin: 0 8px; color: #ddd;">|</span><span style="color: #48bb78; font-size: 12px;" title="输入Token/输出Token/总Token">${response.usage.prompt_tokens || 0}/${response.usage.completion_tokens || 0}/${response.usage.total_tokens || 0} tokens</span>`;
+              }
+              
+              elements.resultInfo.innerHTML = infoHtml;
+              elements.resultInfo.style.display = 'block';
+            }
+            
             // 启用按钮
             elements.copyBtn.disabled = false;
             elements.retryBtn.disabled = false;
@@ -307,6 +321,11 @@
     elements.resultText.innerHTML = '<div class="result-placeholder">翻译结果将在此显示</div>';
     elements.copyBtn.disabled = true;
     elements.retryBtn.disabled = true;
+    // 隐藏信息栏
+    if (elements.resultInfo) {
+      elements.resultInfo.style.display = 'none';
+      elements.resultInfo.innerHTML = 'AI翻译助手';
+    }
     updateCharCount();
   }
 

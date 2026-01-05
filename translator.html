@@ -21,21 +21,17 @@
     <!-- 控制面板 -->
     <div class="control-panel">
       <div class="language-selector">
-        <label>源语言：</label>
+        <label>源语言:</label>
         <select id="source-lang" class="lang-select">
           <option value="auto">自动检测</option>
         </select>
-        
+            
         <span class="arrow">→</span>
-        
-        <label>目标语言：</label>
+            
+        <label>目标语言:</label>
         <select id="target-lang" class="lang-select">
         </select>
       </div>
-      
-      <button class="translate-btn" id="translate-btn">
-        <span class="btn-text">翻译</span>
-      </button>
     </div>
 
     <!-- 主要内容区域 -->
@@ -52,6 +48,9 @@
               🗑️ 清空
             </button>
             <span class="char-count" id="char-count">0 字符</span>
+            <button class="translate-btn" id="translate-btn">
+              <span class="btn-text">🚀 翻译</span>
+            </button>
           </div>
         </div>
         <textarea 
@@ -79,6 +78,10 @@
           <div class="result-placeholder">
             翻译结果将在此显示
           </div>
+        </div>
+        <!-- 翻译信息栏 -->
+        <div class="result-info" id="result-info" style="display: none;">
+          AI翻译助手
         </div>
       </div>
     </div>
