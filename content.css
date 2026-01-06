@@ -77,6 +77,18 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   flex-shrink: 0; /* 防止header被压缩 */
+  cursor: move; /* 表示可拖拽 */
+  user-select: none; /* 拖拽时防止选中文字 */
+}
+
+/* 拖拽时的弹窗样式 */
+.ai-translate-popup.dragging {
+  transition: none; /* 拖拽时禁用过渡动画 */
+  user-select: none;
+}
+
+.ai-translate-popup.dragging .ai-translate-popup-header {
+  cursor: grabbing;
 }
 
 .ai-translate-popup-language {

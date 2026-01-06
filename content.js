@@ -16,6 +16,13 @@
   let isDictionaryMode = false;  // 是否为词典模式
   let lastMousePosition = { x: 0, y: 0 };  // 保存鼠标位置用于右键菜单翻译
   
+  // 拖拽相关状态
+  let isDragging = false;  // 是否正在拖拽
+  let dragStartX = 0;      // 拖拽开始时鼠标X坐标
+  let dragStartY = 0;      // 拖抽开始时鼠标Y坐标
+  let popupStartX = 0;     // 拖拽开始时弹窗X坐标
+  let popupStartY = 0;     // 拖拽开始时弹窗Y坐标
+  
   // 音频播放状态
   let currentAudio = null;  // 当前正在播放的音频实例
   let isSynthesizing = false;  // 是否正在合成语音
@@ -354,6 +361,12 @@
 
     const copyBtn = popup.querySelector('#ai-translate-copy');
     copyBtn.addEventListener('click', handleCopyTranslation);
+
+    // 绑定拖拽事件
+    const header = popup.querySelector('.ai-translate-popup-header');
+    if (header) {
+      header.addEventListener('mousedown', handleDragStart);
+    }
 
     // 词典模式和翻译模式的不同处理
     if (isDictionaryMode) {
@@ -1194,9 +1207,107 @@
   }
 
   /**
+   * 开始拖拽弹窗
+   */
+  function handleDragStart(e) {
+    // 只响应左键
+    if (e.button !== 0) return;
+    
+    // 如果点击的是关闭按钮或下拉框，不开始拖拽
+    if (e.target.closest('#ai-translate-close') || 
+        e.target.closest('.ai-translate-popup-target-select')) {
+      return;
+    }
+    
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    
+    // 获取弹窗当前位置
+    if (currentPopup) {
+      popupStartX = parseInt(currentPopup.style.left, 10) || 0;
+      popupStartY = parseInt(currentPopup.style.top, 10) || 0;
+      currentPopup.classList.add('dragging');
+    }
+    
+    // 添加全局事件监听
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+    
+    // 阻止默认行为和事件冒泡
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  /**
+   * 拖拽移动弹窗
+   */
+  function handleDragMove(e) {
+    if (!isDragging || !currentPopup) return;
+    
+    // 计算移动距离
+    const deltaX = e.clientX - dragStartX;
+    const deltaY = e.clientY - dragStartY;
+    
+    // 计算新位置
+    let newX = popupStartX + deltaX;
+    let newY = popupStartY + deltaY;
+    
+    // 限制在视口内
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const popupRect = currentPopup.getBoundingClientRect();
+    const margin = 10;
+    
+    // 水平边界限制
+    if (newX < margin) {
+      newX = margin;
+    } else if (newX + popupRect.width > viewportWidth - margin) {
+      newX = viewportWidth - popupRect.width - margin;
+    }
+    
+    // 垂直边界限制
+    if (newY < margin) {
+      newY = margin;
+    } else if (newY + popupRect.height > viewportHeight - margin) {
+      newY = viewportHeight - popupRect.height - margin;
+    }
+    
+    // 应用新位置
+    currentPopup.style.left = `${newX}px`;
+    currentPopup.style.top = `${newY}px`;
+    
+    e.preventDefault();
+  }
+
+  /**
+   * 结束拖拽弹窗
+   */
+  function handleDragEnd(e) {
+    if (!isDragging) return;
+    
+    isDragging = false;
+    
+    if (currentPopup) {
+      currentPopup.classList.remove('dragging');
+    }
+    
+    // 移除全局事件监听
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+  }
+
+  /**
    * 关闭弹窗
    */
   function closePopup() {
+    // 清理拖拽状态
+    if (isDragging) {
+      isDragging = false;
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+    }
+    
     // 停止正在播放的音频
     stopAudio();
     
