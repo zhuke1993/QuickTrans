@@ -176,9 +176,22 @@
   /**
    * 显示翻译图标
    */
-  function showTranslateIcon(event) {
+  async function showTranslateIcon(event) {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
+
+    // 检测选中文本的语言
+    const detectionResponse = await chrome.runtime.sendMessage({
+      action: 'detectLanguage',
+      text: currentSelectedText
+    });
+    const detectedLanguage = detectionResponse.language;
+    const targetLanguage = userPreferences.lastTargetLanguage || 'zh';
+
+    // 如果检测到的语言与目标语言一致，不显示翻译图标
+    if (detectedLanguage === targetLanguage) {
+      return;
+    }
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
