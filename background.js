@@ -1044,13 +1044,6 @@ function createContextMenus() {
       contexts: ['selection']
     });
     
-    // 创建在翻译页面中打开菜单项
-    chrome.contextMenus.create({
-      id: 'quicktrans-open-translator',
-      title: '📝 在翻译页面中打开',
-      contexts: ['selection']
-    });
-    
     console.log('右键菜单已创建');
   });
 }
