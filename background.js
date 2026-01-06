@@ -1130,3 +1130,13 @@ chrome.commands.onCommand.addListener((command) => {
     });
   }
 });
+
+/**
+ * 插件图标点击事件处理
+ * 点击插件图标直接打开翻译页面
+ */
+chrome.action.onClicked.addListener(() => {
+  chrome.tabs.create({
+    url: chrome.runtime.getURL('translator.html')
+  });
+});
