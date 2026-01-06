@@ -10,9 +10,12 @@ from PIL import Image
 SOURCE_IMAGE = "source-icon.png"
 
 def resize_icon(source_path, output_path, size):
-    """缩放图标到指定尺寸"""
+    """缩放图标到指定尺寸，保持透明背景"""
     try:
         img = Image.open(source_path)
+        # 确保图片是RGBA模式，保持透明度
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
         # 使用高质量的 Lanczos 重采样
         img_resized = img.resize((size, size), Image.Resampling.LANCZOS)
         img_resized.save(output_path, 'PNG', optimize=True)

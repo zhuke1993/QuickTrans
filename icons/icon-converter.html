@@ -195,6 +195,9 @@
         canvas.height = size;
         const ctx = canvas.getContext('2d');
         
+        // 清除画布，确保透明背景
+        ctx.clearRect(0, 0, size, size);
+        
         // 使用高质量缩放
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -212,6 +215,7 @@
         
         const displayCanvas = previewItem.querySelector('canvas');
         const displayCtx = displayCanvas.getContext('2d');
+        displayCtx.clearRect(0, 0, size, size);
         displayCtx.drawImage(canvas, 0, 0);
         
         previewGrid.appendChild(previewItem);
